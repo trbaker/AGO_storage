@@ -65,19 +65,20 @@
   .toolbar .spacer{flex:1}
   .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:8px}
   table{border-collapse:collapse;width:100%;min-width:1100px;font-variant-numeric:tabular-nums}
-  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th,td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
   th{background:#f6f8fa;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
   th.num,td.num{text-align:right}
   th .arrow{opacity:.5;font-size:10px;margin-left:3px}
   tbody tr:hover{background:#fafcfe}
   td.rank{color:var(--muted);width:34px}
+  td.title{min-width:200px}
   td.title a{color:var(--accent);font-weight:600;text-decoration:none}
   td.title a:hover{text-decoration:underline}
   td.title .meta{font-size:12px;color:var(--muted);margin-top:2px}
   .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#eef1f4;color:#46515c;margin-right:4px}
   .pill.public{background:#e7f4ea;color:var(--ok)}
   .pill.err{background:var(--err-soft);color:var(--err)}
-  td.total{font-weight:700;min-width:150px}
+  td.total{font-weight:700;min-width:120px}
   .sizebar{height:6px;background:#eef1f4;border-radius:99px;margin-top:5px;display:flex;overflow:hidden}
   .sizebar span{display:block;height:100%}
   .sizebar .m{background:var(--bar)} .sizebar .d{background:var(--bar2)} .sizebar .r{background:#d08a1d}
@@ -88,7 +89,7 @@
   .errors li{margin:2px 0}
   .hidden{display:none !important}
   footer{color:var(--muted);font-size:12px;margin-top:18px}
-  footer.credit{text-align:center;margin-top:28px;font-size:13px}
+  footer.credit{text-align:left;margin-top:28px;font-size:13px}
   footer.credit a{color:var(--accent);font-weight:600;text-decoration:none}
   footer.credit a:hover{text-decoration:underline}
 </style>
@@ -163,10 +164,15 @@
         <label for="topN">Show top</label>
         <input type="number" id="topN" min="5" max="1000" value="50">
       </div>
+      <div style="max-width:220px;flex:0 0 220px">
+        <label for="creditRate">Credits per GB / month</label>
+        <input type="number" id="creditRate" min="0" step="0.1" value="1.2">
+        <p class="hint">ArcGIS Online file storage rate</p>
+      </div>
       <div style="flex:3">
         <label>Options</label>
         <div class="checks">
-          <label><input type="checkbox" id="optLinked"> Also count separate <b>Image / Video / Audio / PDF items</b> in the org that a story links to (slower; reads every story's JSON)</label>
+          <label><input type="checkbox" id="optLinked" checked><span>Also count separate <b>Image / Video / Audio / PDF items</b> in the org that a story links to (slower; reads every story's JSON)</span></label>
         </div>
       </div>
     </div>
@@ -205,6 +211,8 @@
         Sizes in MB = 1,048,576 bytes (as ArcGIS Online reports storage). <b>Total</b> = the StoryMap item's stored size, which includes every file uploaded to the story
         (images, video, audio, PDFs, plus draft/publish JSON). It's cross-checked against the item's resource listing, and the larger value is used.
         If "linked media items" is on, the sizes of separate Image/Video/Audio/PDF items the story references are added. A linked item used by several stories is counted for each one.
+        <b>Est. credits / yr</b> = Total ÷ 1,073,741,824 bytes per GB × the file storage rate × 12 months. ArcGIS Online bills StoryMaps, their uploaded media, and Image/PDF items as file storage
+        (1.2 credits per GB per month at the time of writing). This is an estimate that assumes the story stays the same size for a full year. Viewing a StoryMap doesn't use credits.
       </footer>
     </section>
   </section>
@@ -225,6 +233,10 @@
   const fmtDate = (ms) => ms ? new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
   const isoDate = (ms) => ms ? new Date(ms).toISOString().slice(0, 10) : "";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const GB = 1073741824;
+  const creditRate = () => { const v = parseFloat($("#creditRate").value); return isFinite(v) && v >= 0 ? v : 1.2; };
+  const yearCredits = (bytes) => bytes / GB * creditRate() * 12;
+  const fmtCred = (c) => c.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const MEDIA_ITEM_TYPES = new Set(["Image", "Video", "Audio", "PDF"]);
   const NON_MEDIA_EXT = /\.(json|xml|txt)$/i;
 
@@ -552,6 +564,7 @@
         rec.base = Math.max(rec.itemSize, rec.resBytes);    // item size already includes resources; guard against stale values
         rec.dataBytes = Math.max(0, rec.base - rec.mediaBytes);
         rec.total = rec.base + (state.linked ? rec.linkedBytes : 0);
+        rec.credits = yearCredits(rec.total);
         if (rec.error) errors.push({ title: rec.title, id: rec.id, msg: rec.error });
       }
       state.records = records;
@@ -581,10 +594,11 @@
     { key: "created", label: "Created" },
     { key: "modified", label: "Modified" },
     { key: "views", label: "Views", num: true },
-    { key: "mediaCount", label: "Media files", num: true },
-    { key: "mediaBytes", label: "Uploaded media (MB)", num: true },
-    ...(state.linked ? [{ key: "linkedBytes", label: "Linked items (MB)", num: true }] : []),
+    { key: "mediaCount", label: "Files", num: true, tip: "Number of media files uploaded to the story" },
+    { key: "mediaBytes", label: "Media (MB)", num: true, tip: "Images, video, audio and PDFs uploaded into the story" },
+    ...(state.linked ? [{ key: "linkedBytes", label: "Linked (MB)", num: true, tip: "Separate Image/Video/Audio/PDF items the story links to" }] : []),
     { key: "total", label: "Total (MB)", num: true },
+    { key: "credits", label: "Credits / yr", num: true, tip: "Estimated ArcGIS Online file storage credits to host this StoryMap for one year" },
     { key: "links", label: "", nosort: true }
   ];
 
@@ -612,6 +626,8 @@
     const mediaFiles = recs.reduce((s, r) => s + r.mediaCount, 0);
     const owners = new Set(recs.map(r => r.owner)).size;
 
+    for (const r of recs) r.credits = yearCredits(r.total);
+    const allCred = yearCredits(allBytes), topCred = yearCredits(topBytes);
     $("#resultsWrap").classList.remove("hidden");
     $("#legendLinked").classList.toggle("hidden", !state.linked);
     $("#resultsTitle").textContent = `Top ${n} StoryMaps by total size`;
@@ -619,6 +635,7 @@
       ["StoryMaps scanned", fmtInt(recs.length), `${fmtInt(owners)} owners`],
       ["Total StoryMap storage", allBytes >= 1024 * MB ? fmtGB(allBytes) + " GB" : fmtMB(allBytes) + " MB", `${fmtInt(mediaFiles)} uploaded media files`],
       [`Top ${n} combined`, topBytes >= 1024 * MB ? fmtGB(topBytes) + " GB" : fmtMB(topBytes) + " MB", allBytes ? `${(100 * topBytes / allBytes).toFixed(1)}% of all StoryMap storage` : ""],
+      ["Est. storage credits / year", fmtCred(allCred), `All StoryMaps · top ${n}: ${fmtCred(topCred)} (at ${creditRate()} credits/GB/month)`],
       ["Largest StoryMap", topRows[0] ? fmtMB(topRows[0].total) + " MB" : "–", topRows[0] ? esc(topRows[0].title) : ""]
     ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 
@@ -634,7 +651,7 @@
     const cols = COLS();
     $("#thead").innerHTML = cols.map(c => {
       const arrow = c.key === state.sortKey ? (state.sortDir < 0 ? "▼" : "▲") : "";
-      return `<th class="${c.num ? "num" : ""}" data-key="${c.key}" ${c.nosort ? 'style="cursor:default"' : ""}>${c.label}<span class="arrow">${arrow}</span></th>`;
+      return `<th class="${c.num ? "num" : ""}" data-key="${c.key}" title="${esc(c.tip || "")}" ${c.nosort ? 'style="cursor:default"' : ""}>${c.label}<span class="arrow">${arrow}</span></th>`;
     }).join("");
     const rows = currentRows();
     const maxTotal = Math.max(1, ...rows.map(r => r.total));
@@ -654,6 +671,7 @@
         <td class="num">${fmtMB(r.mediaBytes)}</td>
         ${state.linked ? `<td class="num" title="${r.linkedCount} linked media item(s)">${fmtMB(r.linkedBytes)}</td>` : ""}
         <td class="num total">${fmtMB(r.total)}${bar}</td>
+        <td class="num" title="${fmtCred(r.credits / 12)} credits per month">${fmtCred(r.credits)}</td>
         <td><a class="small" href="${esc(storyUrl(r))}" target="_blank" rel="noopener">Open story</a><br><a class="small" href="${esc(itemUrl(r.id))}" target="_blank" rel="noopener">Item page</a></td>
       </tr>`;
     }).join("") || `<tr><td colspan="${cols.length}" style="color:var(--muted);padding:18px">No StoryMaps match.</td></tr>`;
@@ -669,18 +687,19 @@
   });
   $("#filterIn").addEventListener("input", () => renderTable());
   $("#topN").addEventListener("change", () => { if (state.records.length) render(); });
+  $("#creditRate").addEventListener("input", () => { if (state.records.length) render(); });
 
   // ---------- CSV ----------
   function toCSV(rows, withRank) {
     const head = [...(withRank ? ["Rank"] : []), "Title", "Type", "Owner", "Created", "Modified", "Views", "Sharing",
       "Uploaded media files", "Uploaded media (MB)", "Story data & other files (MB)", ...(state.linked ? ["Linked media items", "Linked media (MB)"] : []),
-      "Total (MB)", "Story URL", "Item URL", "Item ID", "Warning"];
+      "Total (MB)", "Est. credits per year", "Story URL", "Item URL", "Item ID", "Warning"];
     const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const lines = [head.join(",")];
     for (const r of rows) {
       lines.push([...(withRank ? [r.rank] : []), r.title, r.kind, r.owner, isoDate(r.created), isoDate(r.modified), r.views, r.access,
         r.mediaCount, (r.mediaBytes / MB).toFixed(2), (r.dataBytes / MB).toFixed(2), ...(state.linked ? [r.linkedCount, (r.linkedBytes / MB).toFixed(2)] : []),
-        (r.total / MB).toFixed(2), storyUrl(r), itemUrl(r.id), r.id, r.error || ""].map(q).join(","));
+        (r.total / MB).toFixed(2), r.credits.toFixed(2), storyUrl(r), itemUrl(r.id), r.id, r.error || ""].map(q).join(","));
     }
     return "﻿" + lines.join("\r\n");
   }
