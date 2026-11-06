@@ -164,11 +164,6 @@
         <label for="topN">Show top</label>
         <input type="number" id="topN" min="5" max="1000" value="50">
       </div>
-      <div style="max-width:220px;flex:0 0 220px">
-        <label for="creditRate">Credits per GB / month</label>
-        <input type="number" id="creditRate" min="0" step="0.1" value="1.2">
-        <p class="hint">ArcGIS Online file storage rate</p>
-      </div>
       <div style="flex:3">
         <label>Options</label>
         <div class="checks">
@@ -211,7 +206,7 @@
         Sizes in MB = 1,048,576 bytes (as ArcGIS Online reports storage). <b>Total</b> = the StoryMap item's stored size, which includes every file uploaded to the story
         (images, video, audio, PDFs, plus draft/publish JSON). It's cross-checked against the item's resource listing, and the larger value is used.
         If "linked media items" is on, the sizes of separate Image/Video/Audio/PDF items the story references are added. A linked item used by several stories is counted for each one.
-        <b>Est. credits / yr</b> = Total ÷ 1,073,741,824 bytes per GB × the file storage rate × 12 months. ArcGIS Online bills StoryMaps, their uploaded media, and Image/PDF items as file storage
+        <b>Est. credits / yr</b> = Total ÷ 1,073,741,824 bytes per GB × 1.2 credits per GB per month × 12 months. ArcGIS Online bills StoryMaps, their uploaded media, and Image/PDF items as file storage
         (1.2 credits per GB per month at the time of writing). This is an estimate that assumes the story stays the same size for a full year. Viewing a StoryMap doesn't use credits.
       </footer>
     </section>
@@ -234,7 +229,8 @@
   const isoDate = (ms) => ms ? new Date(ms).toISOString().slice(0, 10) : "";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const GB = 1073741824;
-  const creditRate = () => { const v = parseFloat($("#creditRate").value); return isFinite(v) && v >= 0 ? v : 1.2; };
+  const CREDITS_PER_GB_MONTH = 1.2;   // ArcGIS Online file storage rate (images, video, audio, PDFs, other files)
+  const creditRate = () => CREDITS_PER_GB_MONTH;
   const yearCredits = (bytes) => bytes / GB * creditRate() * 12;
   const fmtCred = (c) => c.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const MEDIA_ITEM_TYPES = new Set(["Image", "Video", "Audio", "PDF"]);
@@ -635,7 +631,7 @@
       ["StoryMaps scanned", fmtInt(recs.length), `${fmtInt(owners)} owners`],
       ["Total StoryMap storage", allBytes >= 1024 * MB ? fmtGB(allBytes) + " GB" : fmtMB(allBytes) + " MB", `${fmtInt(mediaFiles)} uploaded media files`],
       [`Top ${n} combined`, topBytes >= 1024 * MB ? fmtGB(topBytes) + " GB" : fmtMB(topBytes) + " MB", allBytes ? `${(100 * topBytes / allBytes).toFixed(1)}% of all StoryMap storage` : ""],
-      ["Est. storage credits / year", fmtCred(allCred), `All StoryMaps · top ${n}: ${fmtCred(topCred)} (at ${creditRate()} credits/GB/month)`],
+      ["Est. storage credits / year", fmtCred(allCred), `All StoryMaps · top ${n}: ${fmtCred(topCred)}`],
       ["Largest StoryMap", topRows[0] ? fmtMB(topRows[0].total) + " MB" : "–", topRows[0] ? esc(topRows[0].title) : ""]
     ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 
@@ -687,7 +683,6 @@
   });
   $("#filterIn").addEventListener("input", () => renderTable());
   $("#topN").addEventListener("change", () => { if (state.records.length) render(); });
-  $("#creditRate").addEventListener("input", () => { if (state.records.length) render(); });
 
   // ---------- CSV ----------
   function toCSV(rows, withRank) {
