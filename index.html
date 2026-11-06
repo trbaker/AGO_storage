@@ -108,6 +108,7 @@
   #uTable td.user .meta{font-size:12px;color:var(--muted)}
   #uTable td.tot{font-weight:700}
   .tile .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+  #logPre{background:#0f1720;color:#d6e2ee;font:12px/1.5 var(--mono);padding:12px 14px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0}
   footer.credit{text-align:left;margin-top:28px;font-size:13px}
   footer.credit a{color:var(--accent);font-weight:600;text-decoration:none}
   footer.credit a:hover{text-decoration:underline}
@@ -263,6 +264,7 @@
       <div class="toolbar">
         <h2 style="margin:0">Storage and estimated annual credits by user</h2>
         <div class="spacer"></div>
+        <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);font-size:13px;margin:0"><input type="checkbox" id="uHideEmpty"> Hide members with no content</label>
         <input type="text" id="uFilterIn" placeholder="Filter by name or username…">
         <button class="secondary" id="uCsvBtn">Export (CSV)</button>
       </div>
@@ -285,6 +287,7 @@
         Rates: <b>file storage</b> (StoryMaps, other files &amp; media) and <b>imagery storage</b> 1.2 credits per GB per month; <b>feature storage</b> 2.4 credits per 10 MB per month.
         StoryMap sizes include uploaded media; if you've run the Top StoryMaps scan, its measured sizes are used. Linked Image/Video/PDF items are counted once, under the user who owns them, in "Other files &amp; media".
         Hosted feature layer views and location sharing layers are left out because they aren't billed as feature storage.
+        Sizes are read from each member's content list and, where missing, from each item's details (ArcGIS search doesn't report sizes).
         Feature layer sizes come from each item's reported size, which can include attachments. Attachments are billed at the cheaper file rate, so layers with many photos may be estimated high.
         Not included: the daily per-image fees for dynamic imagery layers (marked "+ image fees"), ArcGIS Notebooks workspace storage, and fixed-price Premium Feature Data Store plans.
       </footer>
@@ -292,6 +295,19 @@
   </section>
   </div>
   </div>
+
+  <section class="card hidden" id="logCard">
+    <div class="toolbar" style="margin-bottom:6px">
+      <h2 style="margin:0">Troubleshooting log</h2>
+      <span class="hint" id="logCount" style="margin:0"></span>
+      <div class="spacer"></div>
+      <button class="secondary" id="logToggle">Show log</button>
+      <button class="secondary" id="logDl">Download log</button>
+      <button class="secondary" id="logClear">Clear</button>
+    </div>
+    <pre id="logPre" class="hidden"></pre>
+    <p class="hint">Records every request (never your token or password), what came back, and timing. It includes usernames and item IDs from your org, so share it only with people you trust.</p>
+  </section>
 
   <footer class="credit">Designed by <a href="https://tbaker.com" target="_blank" rel="noopener">Tom Baker</a></footer>
 </main>
@@ -362,33 +378,85 @@
   // ---------- REST ----------
   class ApiError extends Error { constructor(msg, code) { super(msg); this.code = code; } }
 
+  // ---------- troubleshooting log ----------
+  const APP_VERSION = "2026-11-06.2";
+  const LOG = { entries: [], started: Date.now(), dropped: 0, reqs: 0, errs: 0 };
+  const LOG_MAX = 5000, LOG_KEEP_HEAD = 400;
+  let logRenderPending = false;
+  function logEvent(kind, msg) {
+    LOG.entries.push({ t: (Date.now() - LOG.started) / 1000, kind, msg });
+    if (LOG.entries.length > LOG_MAX) { LOG.entries.splice(LOG_KEEP_HEAD, 1); LOG.dropped++; }
+    if (!logRenderPending) { logRenderPending = true; requestAnimationFrame(renderLog); }
+  }
+  function cleanParams(params) {
+    const o = {};
+    for (const [k, v] of Object.entries(params || {})) {
+      if (v === undefined || v === null || k === "token" || k === "password" || k === "code_verifier" || k === "code") continue;
+      o[k] = String(v).length > 160 ? String(v).slice(0, 160) + "…" : v;
+    }
+    return Object.keys(o).length ? " " + JSON.stringify(o) : "";
+  }
+  function summarize(j) {
+    if (!j || typeof j !== "object") return "";
+    const sz = (arr) => arr.slice(0, 5).map(x => (x && "size" in x) ? x.size : "none").join(",");
+    const parts = [];
+    if (Array.isArray(j.results)) parts.push(`results=${j.results.length} total=${j.total} next=${j.nextStart} sizes[${sz(j.results)}]`);
+    if (Array.isArray(j.items)) parts.push(`items=${j.items.length} total=${j.total} next=${j.nextStart} folders=${(j.folders || []).length} sizes[${sz(j.items)}]`);
+    if (Array.isArray(j.users)) parts.push(`users=${j.users.length} total=${j.total} next=${j.nextStart} storageUsage[${j.users.slice(0, 5).map(u => u.storageUsage ?? "none").join(",")}]`);
+    if (Array.isArray(j.resources)) parts.push(`resources=${j.resources.length} total=${j.total} next=${j.nextStart}`);
+    if (j.id && j.type && "size" in j && !j.results) parts.push(`item type="${j.type}" size=${j.size}`);
+    if (j.user && "isPortal" in j) parts.push(`portal id=${j.id} isPortal=${j.isPortal} user=${j.user.username} role=${j.user.role} privileges=${(j.user.privileges || []).length}`);
+    if (j.token) parts.push("token received");
+    return parts.join(" ");
+  }
+
   async function api(path, params = {}, { method = "POST", raw = false } = {}) {
     const url = path.startsWith("http") ? path : rest() + path;
+    const shortPath = url.replace(state.portal || "", "").replace("/sharing/rest", "");
     const p = new URLSearchParams();
     if (!raw) p.set("f", "json");
     for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) p.set(k, v);
     if (state.token) p.set("token", state.token);
+    const t0 = performance.now();
+    const tag = `${method} ${shortPath}${cleanParams(params)}`;
+    LOG.reqs++;
     let res, lastErr;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
         res = method === "GET" ? await fetch(url + "?" + p.toString()) : await fetch(url, { method: "POST", body: p });
-        if (res.status === 429 || res.status >= 500) { lastErr = new ApiError("HTTP " + res.status, res.status); await sleep(700 * (attempt + 1) ** 2); continue; }
+        if (res.status === 429 || res.status >= 500) {
+          lastErr = new ApiError("HTTP " + res.status, res.status);
+          logEvent("RETRY", `${tag} → HTTP ${res.status}, retry ${attempt + 1}`);
+          await sleep(700 * (attempt + 1) ** 2); continue;
+        }
         lastErr = null; break;
-      } catch (e) { lastErr = e; await sleep(700 * (attempt + 1) ** 2); }
+      } catch (e) {
+        lastErr = e;
+        logEvent("RETRY", `${tag} → network error: ${e.message}, retry ${attempt + 1}`);
+        await sleep(700 * (attempt + 1) ** 2);
+      }
     }
-    if (lastErr) throw lastErr;
+    const ms = Math.round(performance.now() - t0);
+    if (lastErr) { LOG.errs++; logEvent("ERROR", `${tag} → failed after retries: ${lastErr.message} (${ms} ms)`); throw lastErr; }
     const text = await res.text();
-    if (raw) return text;
+    if (raw) { logEvent("REQ", `${tag} → HTTP ${res.status}, ${text.length} chars (${ms} ms)`); return text; }
     let j;
-    try { j = JSON.parse(text); } catch (e) { throw new ApiError("Unexpected response (HTTP " + res.status + ")", res.status); }
+    try { j = JSON.parse(text); } catch (e) {
+      LOG.errs++; logEvent("ERROR", `${tag} → HTTP ${res.status}, not JSON: ${text.slice(0, 120)} (${ms} ms)`);
+      throw new ApiError("Unexpected response (HTTP " + res.status + ")", res.status);
+    }
     if (j && j.error) {
       const code = j.error.code;
+      LOG.errs++;
+      logEvent("ERROR", `${tag} → error ${code}: ${j.error.message || ""} ${(j.error.details || []).join(" ")} (${ms} ms)`);
       const err = new ApiError(j.error.message || ("Error " + code), code);
       if (code === 498 || code === 499) err.auth = true;
       throw err;
     }
+    logEvent("REQ", `${tag} → HTTP ${res.status} ${summarize(j)} (${ms} ms)`);
     return j;
   }
+
 
   // ---------- auth: OAuth 2.0 PKCE ----------
   const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -419,7 +487,7 @@
     const msg = $("#signinMsg");
     const saved = JSON.parse(sessionStorage.getItem("smAudit.oauth") || "null");
     history.replaceState(null, "", location.pathname);
-    if (qs.has("error")) { showMsg(msg, "err", "Sign-in was cancelled or failed: " + esc(qs.get("error_description") || qs.get("error"))); return false; }
+    if (qs.has("error")) { logEvent("ERROR", "OAuth returned error: " + (qs.get("error_description") || qs.get("error"))); showMsg(msg, "err", "Sign-in was cancelled or failed: " + esc(qs.get("error_description") || qs.get("error"))); return false; }
     if (!saved || saved.state !== qs.get("state")) { showMsg(msg, "err", "Sign-in state mismatch. Please try again."); return false; }
     sessionStorage.removeItem("smAudit.oauth");
     try {
@@ -427,7 +495,9 @@
         client_id: saved.clientId, grant_type: "authorization_code", code: qs.get("code"),
         redirect_uri: redirectUri, code_verifier: saved.verifier, f: "json"
       });
+      logEvent("INFO", `OAuth: exchanging authorization code at ${saved.portal}/sharing/rest/oauth2/token (redirect ${redirectUri})`);
       const j = await (await fetch(saved.portal + "/sharing/rest/oauth2/token", { method: "POST", body })).json();
+      logEvent(j.access_token ? "INFO" : "ERROR", j.access_token ? `OAuth: token received for ${j.username || "user"}, expires in ${j.expires_in}s` : `OAuth: token exchange failed: ${JSON.stringify(j.error || j).slice(0, 300)}`);
       if (j.error || !j.access_token) throw new Error((j.error && (j.error.message || j.error_description)) || j.error_description || "Token exchange failed");
       await onToken(saved.portal, j.access_token, Date.now() + (j.expires_in || 7200) * 1000);
       return true;
@@ -467,6 +537,7 @@
     const self = await api("/portals/self");
     if (!self.user) throw new Error("The token is not tied to a signed-in user.");
     state.self = self; state.user = self.user;
+    logEvent("INFO", `Signed in to ${portal} · org "${self.name}" (${self.id}) · user ${self.user.username} · role ${self.user.role}${self.user.roleId ? " / roleId " + self.user.roleId : ""} · ${(self.user.privileges || []).length} privileges · isPortal=${!!self.isPortal}`);
     try { sessionStorage.setItem("smAudit.session", JSON.stringify({ portal, token, expires: state.expires })); } catch (e) {}
     showSignedIn();
   }
@@ -555,6 +626,7 @@
 
   async function runScan() {
     if (state.busy) return;
+    logEvent("INFO", `=== Top StoryMaps scan started (show top ${$("#topN").value}, linked media ${$("#optLinked").checked ? "on" : "off"}) ===`);
     setBusy(true);
     state.cancel = false;
     state.linked = $("#optLinked").checked;
@@ -592,6 +664,10 @@
       let done = 0;
       await pool(records, 8, async (rec) => {
         try {
+          try {
+            const det = await api(`/content/items/${rec.id}`, {}, { method: "GET" });
+            if (det.size > 0) rec.itemSize = det.size;
+          } catch (e) { if (e.auth) throw e; }
           const res = await listResources(rec.id);
           for (const r of res) {
             const sz = r.size > 0 ? r.size : 0;
@@ -658,6 +734,7 @@
       state.records = records;
       state.errors = errors;
       state.sortKey = "total"; state.sortDir = -1;
+      logEvent("SUMMARY", `Top StoryMaps: ${records.length} StoryMaps · ${fmtMB(records.reduce((a, r) => a + r.total, 0))} MB total · ${records.filter(r => r.itemSize > 0).length} with item size from item details · ${records.filter(r => r.resCount > 0).length} with uploaded files · ${errors.length} warnings`);
       setProgress(1, `Done. Scanned ${fmtInt(records.length)} StoryMaps.`);
       render();
     } catch (e) {
@@ -806,6 +883,48 @@
     renderTable();
   });
 
+  // ================= LOG UI =================
+  const logLine = (e) => `[${e.t.toFixed(2).padStart(8)}s] ${e.kind.padEnd(7)} ${e.msg}`;
+  function renderLog() {
+    logRenderPending = false;
+    if (!LOG.entries.length) { $("#logCard").classList.add("hidden"); return; }
+    $("#logCard").classList.remove("hidden");
+    $("#logCount").textContent = `${fmtInt(LOG.reqs)} request${LOG.reqs === 1 ? "" : "s"} · ${fmtInt(LOG.errs)} error${LOG.errs === 1 ? "" : "s"}` + (LOG.dropped ? ` · ${fmtInt(LOG.dropped)} older lines trimmed` : "");
+    const pre = $("#logPre");
+    if (!pre.classList.contains("hidden")) {
+      const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+      pre.textContent = LOG.entries.slice(-400).map(logLine).join("\n");
+      if (atBottom) pre.scrollTop = pre.scrollHeight;
+    }
+  }
+  $("#logToggle").addEventListener("click", () => {
+    const pre = $("#logPre"); pre.classList.toggle("hidden");
+    $("#logToggle").textContent = pre.classList.contains("hidden") ? "Show log" : "Hide log";
+    renderLog(); pre.scrollTop = pre.scrollHeight;
+  });
+  $("#logClear").addEventListener("click", () => { LOG.entries = []; LOG.reqs = 0; LOG.errs = 0; LOG.dropped = 0; LOG.started = Date.now(); renderLog(); });
+  $("#logDl").addEventListener("click", () => {
+    const s = state.self, u = state.user;
+    const head = [
+      "StoryMap Storage Audit, troubleshooting log",
+      `App version: ${APP_VERSION}`,
+      `Created: ${new Date().toString()}`,
+      `Page: ${location.origin}${location.pathname}`,
+      `Browser: ${navigator.userAgent}`,
+      `Portal: ${state.portal || "(not signed in)"}`,
+      s ? `Org: ${s.name} (${s.id}) isPortal=${!!s.isPortal} urlKey=${s.urlKey || ""}` : "Org: (not signed in)",
+      u ? `User: ${u.username} role=${u.role} roleId=${u.roleId || ""} privileges=${(u.privileges || []).length}` : "User: (not signed in)",
+      `Requests: ${LOG.reqs} · errors: ${LOG.errs} · lines trimmed: ${LOG.dropped}`,
+      "Tokens and passwords are never written to this log.",
+      "-".repeat(80), ""
+    ];
+    const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([head.join("\n") + LOG.entries.map(logLine).join("\n")], { type: "text/plain;charset=utf-8" }));
+    a.download = `storymap-audit-log-${ts}.txt`; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  });
+
   // ================= APP TABS =================
   function showTab(name) {
     document.querySelectorAll(".apptabs button").forEach(b => b.classList.toggle("active", b.dataset.apptab === name));
@@ -889,56 +1008,105 @@
   $("#uScanBtn").addEventListener("click", runUserScan);
   $("#uCancelBtn").addEventListener("click", () => { state.cancel = true; uProgress(0, "Cancelling…"); });
 
+  async function listUserContent(username) {
+    const base = `/content/users/${encodeURIComponent(username)}`;
+    const out = [];
+    const page = async (path) => {
+      let start = 1, guard = 0, first = null;
+      do {
+        const r = await api(path, { start, num: 100 }, { method: "GET" });
+        if (!first) first = r;
+        out.push(...(r.items || []));
+        start = r.nextStart;
+      } while (start && start > 0 && !state.cancel && ++guard < 500);
+      return first || {};
+    };
+    const root = await page(base);
+    for (const f of (root.folders || [])) { if (state.cancel) break; await page(`${base}/${encodeURIComponent(f.id)}`); }
+    return out;
+  }
+
   async function runUserScan() {
     if (state.busy) return;
     setBusy(true);
     state.cancel = false;
     $("#uCancelBtn").classList.remove("hidden");
     const errors = [];
+    logEvent("INFO", "=== Storage by user scan started ===");
     try {
       const orgId = state.self.id;
+
+      // 1. Members
       uProgress(0.02, "Listing organization members…");
-      const members = await listOrgUsers();
+      let members = await listOrgUsers();
+      logEvent("INFO", `Members found: ${members.length}`);
       if (state.cancel) return uProgress(0, "Scan cancelled.");
-
-      // Gather every item in the org. One org-wide search works up to 10,000 items;
-      // bigger orgs are searched member by member.
-      const items = new Map();
-      const orgQ = orgId ? `orgid:${orgId}` : "*";
-      const first = await api("/search", { q: orgQ, num: 1, start: 1 });
-      if (first.total <= 10000 || !members.length) {
-        const { items: all } = await searchAll(orgQ, (n, t) => uProgress(0.05 + 0.9 * n / Math.max(1, t), `Reading item sizes… ${fmtInt(n)} of ${fmtInt(t)}`));
-        all.forEach(it => items.set(it.id, it));
-        if (first.total > 10000) errors.push({ title: "Search limit", msg: `The organization has ${fmtInt(first.total)} items; ArcGIS search returns at most 10,000, so some may be missing.` });
-      } else {
-        let done = 0;
-        await pool(members, 6, async (m) => {
-          try {
-            const q = `owner:"${String(m.username).replace(/"/g, '\\"')}"` + (orgId ? ` AND orgid:${orgId}` : "");
-            const { items: mine } = await searchAll(q);
-            mine.forEach(it => { if (it.owner === m.username) items.set(it.id, it); });
-          } catch (e) { if (e.auth) throw e; errors.push({ title: m.username, msg: "Couldn't read this member's items: " + e.message }); }
-          done++;
-          uProgress(0.05 + 0.9 * done / members.length, `Reading item sizes… member ${fmtInt(done)} of ${fmtInt(members.length)} (${fmtInt(items.size)} items)`);
-        });
+      if (!members.length) {
+        // Fall back to the owners found by an org-wide search.
+        logEvent("WARN", "Member list was empty or blocked; falling back to item owners from an org-wide search.");
+        errors.push({ title: "Members", msg: "Couldn't list organization members; using owners of searchable items instead." });
+        const { items: found } = await searchAll(orgId ? `orgid:${orgId}` : "*");
+        members = [...new Set(found.map(i => i.owner))].map(u => ({ username: u }));
+        logEvent("INFO", `Owners found from search: ${members.length}`);
       }
+
+      // 2. Each member's content (root + folders). Search can't be used for sizes: it always reports size -1.
+      const items = new Map();
+      let done = 0;
+      await pool(members, 4, async (m) => {
+        try {
+          const mine = await listUserContent(m.username);
+          mine.forEach(it => items.set(it.id, it));
+        } catch (e) {
+          if (e.auth) throw e;
+          errors.push({ title: m.username, msg: "Couldn't list this member's content: " + e.message });
+        }
+        done++;
+        uProgress(0.05 + 0.6 * done / members.length, `Listing content… member ${fmtInt(done)} of ${fmtInt(members.length)} (${fmtInt(items.size)} items)`);
+      });
       if (state.cancel) return uProgress(0, "Scan cancelled.");
 
-      // Use measured StoryMap sizes from the Top StoryMaps scan when available.
-      const measured = new Map((state.records || []).map(r => [r.id, r.base]));
+      // 3. Item details for anything without a usable size
+      const needSize = [...items.values()].filter(it => !(typeof it.size === "number" && it.size >= 0));
+      logEvent("INFO", `Items listed: ${items.size}; ${needSize.length} have no size in the listing and need item details`);
+      done = 0;
+      await pool(needSize, 8, async (it) => {
+        try {
+          const det = await api(`/content/items/${it.id}`, {}, { method: "GET" });
+          it.size = typeof det.size === "number" ? det.size : -1;
+          if (!it.typeKeywords && det.typeKeywords) it.typeKeywords = det.typeKeywords;
+        } catch (e) {
+          if (e.auth) throw e;
+          errors.push({ title: it.title || it.id, msg: `Couldn't read size (owner ${it.owner}): ${e.message}` });
+        }
+        done++;
+        if (done % 10 === 0 || done === needSize.length)
+          uProgress(0.65 + 0.33 * done / Math.max(1, needSize.length), `Reading item sizes… ${fmtInt(done)} of ${fmtInt(needSize.length)}`);
+      });
+      if (state.cancel) return uProgress(0, "Scan cancelled.");
 
+      // 4. Aggregate
+      const measured = new Map((state.records || []).map(r => [r.id, r.base]));
       const byUser = new Map();
-      for (const m of members) byUser.set(m.username, { username: m.username, fullName: m.fullName || "", role: m.role || "", items: 0, dyn: 0 });
+      for (const m of members) byUser.set(m.username, {
+        username: m.username, fullName: m.fullName || "", role: m.role || "",
+        reported: typeof m.storageUsage === "number" ? m.storageUsage : null, items: 0, dyn: 0
+      });
+      let unknown = 0;
+      const catCount = { story: 0, file: 0, feature: 0, imagery: 0, skipped: 0 };
       for (const it of items.values()) {
         const cat = storageCategory(it);
-        if (!cat) continue;
+        if (!cat) { catCount.skipped++; continue; }
+        catCount[cat]++;
         let u = byUser.get(it.owner);
-        if (!u) { u = { username: it.owner, fullName: "", role: "", items: 0, dyn: 0 }; byUser.set(it.owner, u); }
+        if (!u) { u = { username: it.owner, fullName: "", role: "", reported: null, items: 0, dyn: 0 }; byUser.set(it.owner, u); }
+        if (!(it.size >= 0)) unknown++;
         const bytes = cat === "story" && measured.has(it.id) ? measured.get(it.id) : (it.size > 0 ? it.size : 0);
         u[cat] = (u[cat] || 0) + bytes;
         u.items++;
         if (cat === "imagery" && isDynamicImagery(it)) u.dyn++;
       }
+      if (unknown) errors.push({ title: "Unknown sizes", msg: `${fmtInt(unknown)} items had no size available and were counted as 0.` });
       const rows = [];
       for (const u of byUser.values()) {
         u.totalBytes = 0; u.totalCredits = 0;
@@ -950,6 +1118,10 @@
         }
         rows.push(u);
       }
+      const sum = (k) => rows.reduce((a, u) => a + u[k], 0);
+      const reportedTotal = rows.reduce((a, u) => a + (u.reported || 0), 0);
+      logEvent("SUMMARY", `Storage by user: ${rows.length} members · ${items.size} items (StoryMaps ${catCount.story}, other files ${catCount.file}, feature ${catCount.feature}, imagery ${catCount.imagery}, skipped views/tracking ${catCount.skipped}) · unknown sizes ${unknown}`);
+      logEvent("SUMMARY", `Totals MB: StoryMaps ${fmtMB(sum("story"))} · other ${fmtMB(sum("file"))} · feature ${fmtMB(sum("feature"))} · imagery ${fmtMB(sum("imagery"))} · computed ${fmtMB(sum("totalBytes"))} vs ArcGIS-reported member storageUsage ${fmtMB(reportedTotal)} · credits/yr ${fmtCred(sum("totalCredits"))}`);
       state.users = rows;
       state.usersEmpty = rows.filter(u => u.totalBytes === 0).length;
       state.uErrors = errors;
@@ -957,6 +1129,7 @@
       uProgress(1, `Done. Read ${fmtInt(items.size)} items across ${fmtInt(rows.length)} members.`);
       renderUsers();
     } catch (e) {
+      logEvent("ERROR", "Storage by user scan stopped: " + e.message);
       if (e.auth) {
         uProgress(0, "");
         showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
@@ -980,7 +1153,7 @@
     $("#uTiles").innerHTML = CATS.map(c =>
       `<div class="tile"><div class="k"><span class="dot ${c.cls}"></span>${esc(c.label)}</div><div class="v">${fmtCred(tot[c.key + "Cr"])}</div><div class="s">credits / yr · ${fmtSize(tot[c.key])} stored</div></div>`
     ).join("") +
-      `<div class="tile"><div class="k">All storage</div><div class="v">${fmtCred(tot.totalCredits)}</div><div class="s">credits / yr · ${fmtSize(tot.totalBytes)} · ${fmtInt(withContent)} members with content</div></div>`;
+      `<div class="tile"><div class="k">All storage</div><div class="v">${fmtCred(tot.totalCredits)}</div><div class="s">credits / yr · ${fmtSize(tot.totalBytes)} · ${fmtInt(rows.length)} members, ${fmtInt(withContent)} with content</div></div>`;
     renderUserTable();
     const errs = state.uErrors || [];
     $("#uErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
@@ -991,7 +1164,7 @@
     const f = $("#uFilterIn").value.trim().toLowerCase();
     const k = state.uSortKey, d = state.uSortDir;
     return (state.users || [])
-      .filter(u => u.totalBytes > 0)
+      .filter(u => !$("#uHideEmpty").checked || u.totalBytes > 0)
       .filter(u => !f || u.username.toLowerCase().includes(f) || (u.fullName || "").toLowerCase().includes(f))
       .sort((a, b) => k === "username" ? d * a.username.localeCompare(b.username) : d * ((a[k] || 0) - (b[k] || 0)));
   }
@@ -1027,15 +1200,16 @@
     renderUserTable();
   });
   $("#uFilterIn").addEventListener("input", renderUserTable);
+  $("#uHideEmpty").addEventListener("change", renderUserTable);
   $("#uCsvBtn").addEventListener("click", () => {
     const head = ["Username", "Full name", "Role", "Items",
-      ...CATS.flatMap(c => [`${c.label} (MB)`, `${c.label} credits/yr`]), "Total storage (MB)", "Total credits/yr", "Dynamic imagery layers (per-image fees not included)"];
+      ...CATS.flatMap(c => [`${c.label} (MB)`, `${c.label} credits/yr`]), "Total storage (MB)", "Total credits/yr", "ArcGIS-reported storage (MB)", "Dynamic imagery layers (per-image fees not included)"];
     const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const lines = [head.join(",")];
     for (const u of userRows()) {
       lines.push([u.username, u.fullName, u.role, u.items,
         ...CATS.flatMap(c => [(u[c.key] / MB).toFixed(2), u[c.key + "Cr"].toFixed(2)]),
-        (u.totalBytes / MB).toFixed(2), u.totalCredits.toFixed(2), u.dyn].map(q).join(","));
+        (u.totalBytes / MB).toFixed(2), u.totalCredits.toFixed(2), u.reported == null ? "" : (u.reported / MB).toFixed(2), u.dyn].map(q).join(","));
     }
     download(`storage-credits-by-user-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
