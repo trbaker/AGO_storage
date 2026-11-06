@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StoryMap Storage Audit · ArcGIS Online</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#fff; --ink:#1d2329; --muted:#5d6874; --line:#dfe3e8;
+    --accent:#0b6fbf; --accent-ink:#fff; --accent-soft:#e6f1fa; --warn:#a15c00; --warn-soft:#fff4e0;
+    --err:#b3261e; --err-soft:#fdecea; --ok:#2e7d32; --bar:#0b6fbf; --bar2:#8fb9dd;
+    --radius:10px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#15202b;color:#fff;padding:18px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.2px}
+  header .sub{color:#aab6c2;font-size:13px}
+  header .spacer{flex:1}
+  header .who{font-size:13px;color:#d6dde4}
+  main{max-width:1320px;margin:0 auto;padding:22px 24px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:18px}
+  .card h2{font-size:16px;margin:0 0 12px}
+  label{display:block;font-weight:600;font-size:12.5px;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+  input[type=text],input[type=password],input[type=number],input[type=url],textarea{
+    width:100%;padding:8px 10px;border:1px solid #c8cfd6;border-radius:7px;font:inherit;background:#fff}
+  textarea{font-family:var(--mono);font-size:12px;min-height:70px}
+  input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+  .row > *{flex:1;min-width:200px}
+  button{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:8px 16px;cursor:pointer}
+  button.secondary{background:#fff;color:var(--accent)}
+  button.ghost{background:transparent;border-color:transparent;color:#d6dde4;padding:6px 10px}
+  button.ghost:hover{color:#fff;text-decoration:underline}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 10px}
+  .tabs button{background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px;font-weight:600}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .pane{display:none}.pane.active{display:block}
+  .hint{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+  code,.mono{font-family:var(--mono);font-size:12px}
+  .copyline{display:flex;gap:8px;align-items:center;background:#f6f8fa;border:1px solid var(--line);border-radius:7px;padding:6px 8px;margin-top:6px}
+  .copyline code{flex:1;overflow:auto;white-space:nowrap}
+  .copyline button{padding:3px 10px;font-size:12px}
+  details{margin-top:12px}
+  details summary{cursor:pointer;color:var(--accent);font-weight:600}
+  details ol{margin:8px 0 0 0;padding-left:20px;color:var(--muted)}
+  .msg{padding:10px 12px;border-radius:7px;margin-top:12px;font-size:13px}
+  .msg.err{background:var(--err-soft);color:var(--err)}
+  .msg.warn{background:var(--warn-soft);color:var(--warn)}
+  .msg.info{background:var(--accent-soft);color:#08497d}
+  .checks{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .checks label{display:flex;gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);font-size:14px;margin:0}
+  .checks input{margin-top:3px}
+  .progress{height:8px;background:#e8ecf0;border-radius:99px;overflow:hidden;margin-top:14px}
+  .progress > div{height:100%;width:0;background:var(--accent);transition:width .2s}
+  .status{margin-top:8px;color:var(--muted);font-size:13px;min-height:1.4em}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .tile .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .tile .v{font-size:24px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+  .tile .s{font-size:12px;color:var(--muted)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar input{max-width:320px}
+  .toolbar .spacer{flex:1}
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:8px}
+  table{border-collapse:collapse;width:100%;min-width:1100px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#f6f8fa;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
+  th.num,td.num{text-align:right}
+  th .arrow{opacity:.5;font-size:10px;margin-left:3px}
+  tbody tr:hover{background:#fafcfe}
+  td.rank{color:var(--muted);width:34px}
+  td.title a{color:var(--accent);font-weight:600;text-decoration:none}
+  td.title a:hover{text-decoration:underline}
+  td.title .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#eef1f4;color:#46515c;margin-right:4px}
+  .pill.public{background:#e7f4ea;color:var(--ok)}
+  .pill.err{background:var(--err-soft);color:var(--err)}
+  td.total{font-weight:700;min-width:150px}
+  .sizebar{height:6px;background:#eef1f4;border-radius:99px;margin-top:5px;display:flex;overflow:hidden}
+  .sizebar span{display:block;height:100%}
+  .sizebar .m{background:var(--bar)} .sizebar .d{background:var(--bar2)} .sizebar .r{background:#d08a1d}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);align-items:center}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  td a.small{font-size:12px;color:var(--accent);white-space:nowrap}
+  .errors{font-size:12.5px;margin-top:10px}
+  .errors li{margin:2px 0}
+  .hidden{display:none !important}
+  footer{color:var(--muted);font-size:12px;margin-top:18px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>StoryMap Storage Audit</h1>
+    <div class="sub">Largest ArcGIS StoryMaps in your organization, uploaded media included</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="who hidden" id="whoBox"><span id="whoText"></span> <button class="ghost" id="signOutBtn">Sign out</button></div>
+</header>
+
+<main>
+  <!-- ============ SIGN IN ============ -->
+  <section class="card" id="signinCard">
+    <h2>1 · Sign in as an organization administrator</h2>
+    <label for="portalUrl">ArcGIS Online / Portal URL</label>
+    <input type="url" id="portalUrl" placeholder="https://www.arcgis.com  or  https://yourorg.maps.arcgis.com">
+    <p class="hint">Use your org URL (e.g. <code>https://yourorg.maps.arcgis.com</code>) if you sign in with SAML / enterprise logins. ArcGIS Enterprise: <code>https://gis.example.com/portal</code>.</p>
+
+    <div class="tabs" role="tablist">
+      <button class="active" data-tab="oauth">ArcGIS sign-in (OAuth)</button>
+      <button data-tab="pwd">Username &amp; password</button>
+      <button data-tab="tok">Paste a token</button>
+    </div>
+
+    <div class="pane active" id="pane-oauth">
+      <label for="clientId">App client ID</label>
+      <input type="text" id="clientId" placeholder="e.g. AbCdEf123456GhIj" autocomplete="off">
+      <div style="margin-top:12px"><button id="oauthBtn">Sign in with ArcGIS</button></div>
+      <details>
+        <summary>How to get a client ID (one-time, ~2 minutes)</summary>
+        <ol>
+          <li>In ArcGIS Online go to <b>Content → New item → Developer credentials → OAuth 2.0 credentials</b>.</li>
+          <li>Add this exact redirect URL:
+            <div class="copyline"><code id="redirectUrl"></code><button class="secondary" id="copyRedirect">Copy</button></div>
+          </li>
+          <li>Save, then copy the <b>Client ID</b> from the item's Settings / Credentials page into the box above.</li>
+          <li>This page must be served over <code>https://</code> or <code>http://localhost</code> (not opened as a <code>file://</code>). Quick local option: run <code>python -m http.server 8000</code> in this file's folder and open <code>http://localhost:8000/storymap-storage-audit.html</code>.</li>
+        </ol>
+      </details>
+    </div>
+
+    <div class="pane" id="pane-pwd">
+      <div class="row">
+        <div><label for="username">Username</label><input type="text" id="username" autocomplete="username"></div>
+        <div><label for="password">Password</label><input type="password" id="password" autocomplete="current-password"></div>
+      </div>
+      <div style="margin-top:12px"><button id="pwdBtn">Sign in</button></div>
+      <p class="hint">Built-in ArcGIS accounts only (not SAML/MFA). The password goes only to your portal's <code>generateToken</code> endpoint and is never stored. The page must be served from a web origin (not <code>file://</code>).</p>
+    </div>
+
+    <div class="pane" id="pane-tok">
+      <label for="tokenIn">Token</label>
+      <textarea id="tokenIn" placeholder="Paste an ArcGIS token"></textarea>
+      <div style="margin-top:12px"><button id="tokBtn">Use token</button></div>
+      <p class="hint">Example from an ArcGIS Notebook: <code>gis = GIS("home"); print(gis._con.token)</code></p>
+    </div>
+
+    <div id="signinMsg"></div>
+  </section>
+
+  <!-- ============ SCAN ============ -->
+  <section class="card hidden" id="scanCard">
+    <h2>2 · Scan StoryMaps</h2>
+    <div id="orgLine" class="hint" style="margin:0 0 6px"></div>
+    <div id="roleWarn"></div>
+    <div class="row" style="margin-top:6px;align-items:flex-start">
+      <div style="max-width:160px;flex:0 0 160px">
+        <label for="topN">Show top</label>
+        <input type="number" id="topN" min="5" max="1000" value="50">
+      </div>
+      <div style="flex:3">
+        <label>Options</label>
+        <div class="checks">
+          <label><input type="checkbox" id="optLinked"> Also count separate <b>Image / Video / Audio / PDF items</b> in the org that a story links to (slower; reads every story's JSON)</label>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button id="scanBtn">Run scan</button>
+      <button class="secondary hidden" id="cancelBtn">Cancel</button>
+    </div>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section class="hidden" id="resultsWrap">
+    <div class="tiles" id="tiles" style="margin-bottom:18px"></div>
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0" id="resultsTitle">Top StoryMaps by total size</h2>
+        <div class="spacer"></div>
+        <input type="text" id="filterIn" placeholder="Filter by title or owner…">
+        <button class="secondary" id="csvTopBtn">Export table (CSV)</button>
+        <button class="secondary" id="csvAllBtn">Export all StoryMaps (CSV)</button>
+      </div>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i style="background:var(--bar)"></i>Uploaded media</span>
+        <span><i style="background:var(--bar2)"></i>Story data &amp; other files</span>
+        <span id="legendLinked" class="hidden"><i style="background:#d08a1d"></i>Linked media items</span>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div id="errorsBox"></div>
+      <footer>
+        Sizes in MB = 1,048,576 bytes (as ArcGIS Online reports storage). <b>Total</b> = the StoryMap item's stored size, which includes every file uploaded to the story
+        (images, video, audio, PDFs, plus draft/publish JSON). It's cross-checked against the item's resource listing, and the larger value is used.
+        If "linked media items" is on, the sizes of separate Image/Video/Audio/PDF items the story references are added. A linked item used by several stories is counted for each one.
+      </footer>
+    </section>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- helpers ----------
+  const $ = (s) => document.querySelector(s);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const MB = 1048576;
+  const fmtMB = (b) => (b / MB).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtGB = (b) => (b / (MB * 1024)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtInt = (n) => (n ?? 0).toLocaleString();
+  const fmtDate = (ms) => ms ? new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const isoDate = (ms) => ms ? new Date(ms).toISOString().slice(0, 10) : "";
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const MEDIA_ITEM_TYPES = new Set(["Image", "Video", "Audio", "PDF"]);
+  const NON_MEDIA_EXT = /\.(json|xml|txt)$/i;
+
+  const state = {
+    portal: null, token: null, expires: 0, self: null, user: null,
+    records: [], cancel: false, sortKey: "total", sortDir: -1, linked: false
+  };
+
+  const redirectUri = location.origin + location.pathname;
+  $("#redirectUrl").textContent = redirectUri;
+
+  function normPortal(u) {
+    u = (u || "").trim();
+    if (!u) u = "https://www.arcgis.com";
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    u = u.replace(/\/+$/, "").replace(/\/sharing(\/rest)?$/i, "").replace(/\/home(\/.*)?$/i, "");
+    return u.replace(/^http:\/\//i, "https://");
+  }
+  const rest = () => state.portal + "/sharing/rest";
+
+  function showMsg(el, kind, html) { el.innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : ""; }
+
+  // ---------- persisted settings ----------
+  try {
+    $("#portalUrl").value = localStorage.getItem("smAudit.portal") || "https://www.arcgis.com";
+    $("#clientId").value = localStorage.getItem("smAudit.clientId") || "";
+  } catch (e) { $("#portalUrl").value = "https://www.arcgis.com"; }
+  function saveSettings() {
+    try {
+      localStorage.setItem("smAudit.portal", $("#portalUrl").value.trim());
+      localStorage.setItem("smAudit.clientId", $("#clientId").value.trim());
+    } catch (e) {}
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+    document.querySelectorAll(".pane").forEach(p => p.classList.toggle("active", p.id === "pane-" + b.dataset.tab));
+    showMsg($("#signinMsg"), "", "");
+  }));
+  $("#copyRedirect").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(redirectUri); $("#copyRedirect").textContent = "Copied"; setTimeout(() => $("#copyRedirect").textContent = "Copy", 1500); } catch (e) {}
+  });
+
+  // ---------- REST ----------
+  class ApiError extends Error { constructor(msg, code) { super(msg); this.code = code; } }
+
+  async function api(path, params = {}, { method = "POST", raw = false } = {}) {
+    const url = path.startsWith("http") ? path : rest() + path;
+    const p = new URLSearchParams();
+    if (!raw) p.set("f", "json");
+    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) p.set(k, v);
+    if (state.token) p.set("token", state.token);
+    let res, lastErr;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        res = method === "GET" ? await fetch(url + "?" + p.toString()) : await fetch(url, { method: "POST", body: p });
+        if (res.status === 429 || res.status >= 500) { lastErr = new ApiError("HTTP " + res.status, res.status); await sleep(700 * (attempt + 1) ** 2); continue; }
+        lastErr = null; break;
+      } catch (e) { lastErr = e; await sleep(700 * (attempt + 1) ** 2); }
+    }
+    if (lastErr) throw lastErr;
+    const text = await res.text();
+    if (raw) return text;
+    let j;
+    try { j = JSON.parse(text); } catch (e) { throw new ApiError("Unexpected response (HTTP " + res.status + ")", res.status); }
+    if (j && j.error) {
+      const code = j.error.code;
+      const err = new ApiError(j.error.message || ("Error " + code), code);
+      if (code === 498 || code === 499) err.auth = true;
+      throw err;
+    }
+    return j;
+  }
+
+  // ---------- auth: OAuth 2.0 PKCE ----------
+  const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const randStr = (n) => { const a = new Uint8Array(n); crypto.getRandomValues(a); return b64url(a).slice(0, n); };
+
+  $("#oauthBtn").addEventListener("click", async () => {
+    const msg = $("#signinMsg");
+    const clientId = $("#clientId").value.trim();
+    if (!clientId) return showMsg(msg, "err", "Enter your app's client ID first (see “How to get a client ID”).");
+    if (location.protocol === "file:") return showMsg(msg, "err", "OAuth can't redirect back to a <code>file://</code> page. Serve this file over https or from <code>http://localhost</code> (see the setup steps).");
+    if (!window.isSecureContext || !crypto.subtle) return showMsg(msg, "err", "This page must be served over https (or http://localhost) for secure sign-in.");
+    saveSettings();
+    const portal = normPortal($("#portalUrl").value);
+    const verifier = randStr(64);
+    const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+    const st = randStr(20);
+    sessionStorage.setItem("smAudit.oauth", JSON.stringify({ verifier, state: st, portal, clientId }));
+    const q = new URLSearchParams({
+      client_id: clientId, response_type: "code", redirect_uri: redirectUri,
+      code_challenge: challenge, code_challenge_method: "S256", state: st, expiration: "240"
+    });
+    location.href = portal + "/sharing/rest/oauth2/authorize?" + q.toString();
+  });
+
+  async function completeOAuthIfReturning() {
+    const qs = new URLSearchParams(location.search);
+    if (!qs.has("code") && !qs.has("error")) return false;
+    const msg = $("#signinMsg");
+    const saved = JSON.parse(sessionStorage.getItem("smAudit.oauth") || "null");
+    history.replaceState(null, "", location.pathname);
+    if (qs.has("error")) { showMsg(msg, "err", "Sign-in was cancelled or failed: " + esc(qs.get("error_description") || qs.get("error"))); return false; }
+    if (!saved || saved.state !== qs.get("state")) { showMsg(msg, "err", "Sign-in state mismatch. Please try again."); return false; }
+    sessionStorage.removeItem("smAudit.oauth");
+    try {
+      const body = new URLSearchParams({
+        client_id: saved.clientId, grant_type: "authorization_code", code: qs.get("code"),
+        redirect_uri: redirectUri, code_verifier: saved.verifier, f: "json"
+      });
+      const j = await (await fetch(saved.portal + "/sharing/rest/oauth2/token", { method: "POST", body })).json();
+      if (j.error || !j.access_token) throw new Error((j.error && (j.error.message || j.error_description)) || j.error_description || "Token exchange failed");
+      await onToken(saved.portal, j.access_token, Date.now() + (j.expires_in || 7200) * 1000);
+      return true;
+    } catch (e) { showMsg(msg, "err", "Sign-in failed: " + esc(e.message)); return false; }
+  }
+
+  // ---------- auth: username/password ----------
+  $("#pwdBtn").addEventListener("click", async () => {
+    const msg = $("#signinMsg");
+    const username = $("#username").value.trim(), password = $("#password").value;
+    if (!username || !password) return showMsg(msg, "err", "Enter a username and password.");
+    if (location.protocol === "file:") return showMsg(msg, "err", "Username/password tokens need a web origin. Serve this page over https or from <code>http://localhost</code>.");
+    saveSettings();
+    const portal = normPortal($("#portalUrl").value);
+    $("#pwdBtn").disabled = true;
+    try {
+      state.portal = portal; state.token = null;
+      const j = await api("/generateToken", { username, password, client: "referer", referer: location.origin, expiration: 240 });
+      $("#password").value = "";
+      await onToken(portal, j.token, j.expires);
+    } catch (e) {
+      showMsg(msg, "err", "Sign-in failed: " + esc(e.message));
+    } finally { $("#pwdBtn").disabled = false; }
+  });
+
+  // ---------- auth: pasted token ----------
+  $("#tokBtn").addEventListener("click", async () => {
+    const t = $("#tokenIn").value.trim();
+    if (!t) return showMsg($("#signinMsg"), "err", "Paste a token first.");
+    saveSettings();
+    try { await onToken(normPortal($("#portalUrl").value), t, 0); $("#tokenIn").value = ""; }
+    catch (e) { showMsg($("#signinMsg"), "err", "That token didn't work: " + esc(e.message)); }
+  });
+
+  async function onToken(portal, token, expires) {
+    state.portal = portal; state.token = token; state.expires = expires || 0;
+    const self = await api("/portals/self");
+    if (!self.user) throw new Error("The token is not tied to a signed-in user.");
+    state.self = self; state.user = self.user;
+    try { sessionStorage.setItem("smAudit.session", JSON.stringify({ portal, token, expires: state.expires })); } catch (e) {}
+    showSignedIn();
+  }
+
+  function showSignedIn() {
+    const s = state.self, u = state.user;
+    $("#signinCard").classList.add("hidden");
+    $("#scanCard").classList.remove("hidden");
+    $("#whoBox").classList.remove("hidden");
+    $("#whoText").textContent = `${u.fullName || u.username} (${u.username})`;
+    $("#orgLine").innerHTML = `Organization: <b>${esc(s.name || s.id)}</b> · ${esc(state.portal)}`;
+    const isAdmin = u.role === "org_admin" && (!u.roleId || (u.privileges || []).some(p => p.startsWith("portal:admin:")));
+    showMsg($("#roleWarn"), "warn", isAdmin ? "" :
+      `You're signed in as <b>${esc(u.role || "non-admin")}</b>. Without administrator privileges, the scan only sees StoryMaps shared with you, and private media listings may be blocked.`);
+  }
+
+  $("#signOutBtn").addEventListener("click", () => {
+    try { sessionStorage.removeItem("smAudit.session"); } catch (e) {}
+    state.token = null; state.self = null; state.user = null; state.records = [];
+    $("#whoBox").classList.add("hidden");
+    $("#scanCard").classList.add("hidden");
+    $("#resultsWrap").classList.add("hidden");
+    $("#signinCard").classList.remove("hidden");
+    showMsg($("#signinMsg"), "info", "Signed out.");
+  });
+
+  // ---------- scan ----------
+  function setProgress(frac, text) {
+    $("#bar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+    if (text !== undefined) $("#status").textContent = text;
+  }
+
+  async function pool(items, n, fn) {
+    let i = 0;
+    const workers = Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (i < items.length && !state.cancel) { const idx = i++; await fn(items[idx], idx); }
+    });
+    await Promise.all(workers);
+  }
+
+  function storyKind(item) {
+    const kw = (item.typeKeywords || []).map(k => k.toLowerCase());
+    if (kw.includes("storymapbriefing")) return "Briefing";
+    if (kw.includes("storymapcollection")) return "Collection";
+    if (kw.some(k => k.includes("frame"))) return "Frame";
+    return "Story";
+  }
+  function storyUrl(rec) {
+    const base = state.self && state.self.isPortal ? state.portal + "/apps/storymaps" : "https://storymaps.arcgis.com";
+    const seg = rec.kind === "Briefing" ? "briefings" : rec.kind === "Collection" ? "collections" : "stories";
+    return `${base}/${seg}/${rec.id}`;
+  }
+  function itemUrl(id) {
+    const s = state.self;
+    const host = s && !s.isPortal && s.urlKey && s.customBaseUrl ? `https://${s.urlKey}.${s.customBaseUrl}` : state.portal;
+    return `${host}/home/item.html?id=${id}`;
+  }
+
+  async function listResources(id) {
+    const out = [];
+    let start = 1, guard = 0;
+    do {
+      const r = await api(`/content/items/${id}/resources`, { start, num: 100 }, { method: "GET" });
+      out.push(...(r.resources || []));
+      start = r.nextStart;
+      if (++guard > 200) break;
+    } while (start && start > 0 && !state.cancel);
+    return out;
+  }
+
+  async function readJsonText(path, params = {}) {
+    try { return await api(path, params, { method: "GET", raw: true }); } catch (e) { return ""; }
+  }
+
+  $("#scanBtn").addEventListener("click", runScan);
+  $("#cancelBtn").addEventListener("click", () => { state.cancel = true; setProgress(0, "Cancelling…"); });
+
+  async function runScan() {
+    state.cancel = false;
+    state.linked = $("#optLinked").checked;
+    $("#scanBtn").disabled = true;
+    $("#cancelBtn").classList.remove("hidden");
+    setProgress(0, "Finding StoryMaps…");
+    const errors = [];
+    try {
+      // Phase 1: find every StoryMap item in the org
+      const orgId = state.self.id;
+      const q = orgId ? `orgid:${orgId} AND type:"StoryMap"` : `type:"StoryMap"`;
+      const found = new Map();
+      let start = 1, total = 0;
+      do {
+        const r = await api("/search", { q, num: 100, start, sortField: "created", sortOrder: "asc" });
+        total = r.total;
+        for (const it of r.results || []) if (it.type === "StoryMap") found.set(it.id, it);
+        start = r.nextStart;
+        setProgress(0.15 * Math.min(1, found.size / Math.max(1, total)), `Finding StoryMaps… ${fmtInt(found.size)} of ~${fmtInt(total)}`);
+      } while (start && start > 0 && !state.cancel);
+      if (state.cancel) return finishCancelled();
+      if (total > 10000) errors.push({ title: "Search limit", msg: `The organization has ${fmtInt(total)} StoryMap matches; ArcGIS search returns at most 10,000, so some may be missing.` });
+
+      const items = [...found.values()];
+      if (!items.length) { setProgress(1, "No StoryMaps found in this organization."); return; }
+
+      // Phase 2: list uploaded files (item resources) for each story
+      const records = items.map(it => ({
+        id: it.id, title: it.title, owner: it.owner, created: it.created, modified: it.modified,
+        views: it.numViews || 0, access: it.access, kind: storyKind(it),
+        itemSize: it.size > 0 ? it.size : 0,
+        resCount: 0, resBytes: 0, mediaCount: 0, mediaBytes: 0,
+        linkedIds: [], linkedBytes: 0, linkedCount: 0,
+        draftRes: null, error: null
+      }));
+      let done = 0;
+      await pool(records, 8, async (rec) => {
+        try {
+          const res = await listResources(rec.id);
+          for (const r of res) {
+            const sz = r.size > 0 ? r.size : 0;
+            rec.resCount++; rec.resBytes += sz;
+            if (!NON_MEDIA_EXT.test(r.resource || "")) { rec.mediaCount++; rec.mediaBytes += sz; }
+            if (/(^|\/)draft[^/]*\.json$/i.test(r.resource || "")) {
+              if (!rec.draftRes || (r.created || 0) > (rec.draftRes.created || 0)) rec.draftRes = r;
+            }
+          }
+        } catch (e) {
+          if (e.auth) throw e;
+          rec.error = "Couldn't list uploaded files: " + e.message;
+        }
+        done++;
+        setProgress(0.15 + 0.6 * done / records.length, `Measuring uploaded media… ${fmtInt(done)} of ${fmtInt(records.length)}`);
+      });
+      if (state.cancel) return finishCancelled();
+
+      // Phase 3 (optional): separate media items the story links to
+      if (state.linked) {
+        done = 0;
+        const idRe = /\b[0-9a-f]{32}\b/gi;
+        await pool(records, 6, async (rec) => {
+          const ids = new Set();
+          const texts = [await readJsonText(`/content/items/${rec.id}/data`)];
+          if (rec.draftRes) texts.push(await readJsonText(`/content/items/${rec.id}/resources/${rec.draftRes.resource.split("/").map(encodeURIComponent).join("/")}`));
+          for (const t of texts) for (const m of (t || "").matchAll(idRe)) { const id = m[0].toLowerCase(); if (id !== rec.id) ids.add(id); }
+          rec.linkedIds = [...ids];
+          done++;
+          setProgress(0.75 + 0.15 * done / records.length, `Reading story content for linked media… ${fmtInt(done)} of ${fmtInt(records.length)}`);
+        });
+        if (state.cancel) return finishCancelled();
+
+        const allIds = [...new Set(records.flatMap(r => r.linkedIds))];
+        const media = new Map();
+        const batches = [];
+        for (let i = 0; i < allIds.length; i += 25) batches.push(allIds.slice(i, i + 25));
+        done = 0;
+        await pool(batches, 4, async (batch) => {
+          try {
+            const q2 = "(" + batch.map(id => `id:${id}`).join(" OR ") + ")" + (state.self.id ? ` AND orgid:${state.self.id}` : "");
+            const r = await api("/search", { q: q2, num: 100 });
+            for (const it of r.results || []) if (MEDIA_ITEM_TYPES.has(it.type)) media.set(it.id, it);
+          } catch (e) { if (e.auth) throw e; errors.push({ title: "Linked media lookup", msg: e.message }); }
+          done++;
+          setProgress(0.9 + 0.1 * done / Math.max(1, batches.length), `Looking up linked media items… ${fmtInt(done)} of ${fmtInt(batches.length)}`);
+        });
+        for (const rec of records) {
+          for (const id of rec.linkedIds) {
+            const it = media.get(id);
+            if (it && it.size > 0) { rec.linkedBytes += it.size; rec.linkedCount++; }
+          }
+        }
+      }
+
+      // Totals
+      for (const rec of records) {
+        rec.base = Math.max(rec.itemSize, rec.resBytes);    // item size already includes resources; guard against stale values
+        rec.dataBytes = Math.max(0, rec.base - rec.mediaBytes);
+        rec.total = rec.base + (state.linked ? rec.linkedBytes : 0);
+        if (rec.error) errors.push({ title: rec.title, id: rec.id, msg: rec.error });
+      }
+      state.records = records;
+      state.errors = errors;
+      state.sortKey = "total"; state.sortDir = -1;
+      setProgress(1, `Done. Scanned ${fmtInt(records.length)} StoryMaps.`);
+      render();
+    } catch (e) {
+      if (e.auth) {
+        setProgress(0, "");
+        showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
+      } else {
+        setProgress(0, "Scan failed: " + e.message);
+      }
+    } finally {
+      $("#scanBtn").disabled = false;
+      $("#cancelBtn").classList.add("hidden");
+    }
+  }
+  function finishCancelled() { setProgress(0, "Scan cancelled."); }
+
+  // ---------- render ----------
+  const COLS = () => [
+    { key: "rank", label: "#", num: true, nosort: true },
+    { key: "title", label: "StoryMap" },
+    { key: "owner", label: "Owner" },
+    { key: "created", label: "Created" },
+    { key: "modified", label: "Modified" },
+    { key: "views", label: "Views", num: true },
+    { key: "mediaCount", label: "Media files", num: true },
+    { key: "mediaBytes", label: "Uploaded media (MB)", num: true },
+    ...(state.linked ? [{ key: "linkedBytes", label: "Linked items (MB)", num: true }] : []),
+    { key: "total", label: "Total (MB)", num: true },
+    { key: "links", label: "", nosort: true }
+  ];
+
+  function currentRows() {
+    const n = Math.max(1, parseInt($("#topN").value, 10) || 50);
+    const f = $("#filterIn").value.trim().toLowerCase();
+    let rows = state.records.filter(r => !f || (r.title || "").toLowerCase().includes(f) || (r.owner || "").toLowerCase().includes(f));
+    rows = rows.slice().sort((a, b) => b.total - a.total).slice(0, n);
+    rows.forEach((r, i) => r.rank = i + 1);
+    const k = state.sortKey, d = state.sortDir;
+    rows.sort((a, b) => {
+      const x = a[k], y = b[k];
+      if (typeof x === "string" || typeof y === "string") return d * String(x || "").localeCompare(String(y || ""));
+      return d * ((x || 0) - (y || 0));
+    });
+    return rows;
+  }
+
+  function render() {
+    const recs = state.records;
+    const n = Math.max(1, parseInt($("#topN").value, 10) || 50);
+    const allBytes = recs.reduce((s, r) => s + r.total, 0);
+    const topRows = recs.slice().sort((a, b) => b.total - a.total).slice(0, n);
+    const topBytes = topRows.reduce((s, r) => s + r.total, 0);
+    const mediaFiles = recs.reduce((s, r) => s + r.mediaCount, 0);
+    const owners = new Set(recs.map(r => r.owner)).size;
+
+    $("#resultsWrap").classList.remove("hidden");
+    $("#legendLinked").classList.toggle("hidden", !state.linked);
+    $("#resultsTitle").textContent = `Top ${n} StoryMaps by total size`;
+    $("#tiles").innerHTML = [
+      ["StoryMaps scanned", fmtInt(recs.length), `${fmtInt(owners)} owners`],
+      ["Total StoryMap storage", allBytes >= 1024 * MB ? fmtGB(allBytes) + " GB" : fmtMB(allBytes) + " MB", `${fmtInt(mediaFiles)} uploaded media files`],
+      [`Top ${n} combined`, topBytes >= 1024 * MB ? fmtGB(topBytes) + " GB" : fmtMB(topBytes) + " MB", allBytes ? `${(100 * topBytes / allBytes).toFixed(1)}% of all StoryMap storage` : ""],
+      ["Largest StoryMap", topRows[0] ? fmtMB(topRows[0].total) + " MB" : "–", topRows[0] ? esc(topRows[0].title) : ""]
+    ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+
+    renderTable();
+
+    const errs = state.errors || [];
+    $("#errorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
+      errs.slice(0, 200).map(e => `<li><b>${esc(e.title)}</b>${e.id ? ` (<a href="${esc(itemUrl(e.id))}" target="_blank" rel="noopener">${e.id}</a>)` : ""}: ${esc(e.msg)}</li>`).join("")
+    }</ul></details>` : "";
+  }
+
+  function renderTable() {
+    const cols = COLS();
+    $("#thead").innerHTML = cols.map(c => {
+      const arrow = c.key === state.sortKey ? (state.sortDir < 0 ? "▼" : "▲") : "";
+      return `<th class="${c.num ? "num" : ""}" data-key="${c.key}" ${c.nosort ? 'style="cursor:default"' : ""}>${c.label}<span class="arrow">${arrow}</span></th>`;
+    }).join("");
+    const rows = currentRows();
+    const maxTotal = Math.max(1, ...rows.map(r => r.total));
+    $("#tbody").innerHTML = rows.map(r => {
+      const w = (b) => (100 * b / maxTotal).toFixed(2) + "%";
+      const bar = `<div class="sizebar"><span class="m" style="width:${w(r.mediaBytes)}"></span><span class="d" style="width:${w(r.dataBytes)}"></span>${state.linked ? `<span class="r" style="width:${w(r.linkedBytes)}"></span>` : ""}</div>`;
+      const accessPill = `<span class="pill ${r.access === "public" ? "public" : ""}">${esc(r.access || "")}</span>`;
+      return `<tr>
+        <td class="rank num">${r.rank}</td>
+        <td class="title"><a href="${esc(storyUrl(r))}" target="_blank" rel="noopener">${esc(r.title || "(untitled)")}</a>
+          <div class="meta"><span class="pill">${esc(r.kind)}</span>${accessPill}${r.error ? '<span class="pill err">partial</span>' : ""}</div></td>
+        <td>${esc(r.owner)}</td>
+        <td style="white-space:nowrap">${fmtDate(r.created)}</td>
+        <td style="white-space:nowrap">${fmtDate(r.modified)}</td>
+        <td class="num">${fmtInt(r.views)}</td>
+        <td class="num">${fmtInt(r.mediaCount)}</td>
+        <td class="num">${fmtMB(r.mediaBytes)}</td>
+        ${state.linked ? `<td class="num" title="${r.linkedCount} linked media item(s)">${fmtMB(r.linkedBytes)}</td>` : ""}
+        <td class="num total">${fmtMB(r.total)}${bar}</td>
+        <td><a class="small" href="${esc(storyUrl(r))}" target="_blank" rel="noopener">Open story</a><br><a class="small" href="${esc(itemUrl(r.id))}" target="_blank" rel="noopener">Item page</a></td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="${cols.length}" style="color:var(--muted);padding:18px">No StoryMaps match.</td></tr>`;
+  }
+
+  $("#thead").addEventListener("click", (e) => {
+    const th = e.target.closest("th"); if (!th) return;
+    const c = COLS().find(c => c.key === th.dataset.key);
+    if (!c || c.nosort) return;
+    if (state.sortKey === c.key) state.sortDir *= -1;
+    else { state.sortKey = c.key; state.sortDir = ["title", "owner"].includes(c.key) ? 1 : -1; }
+    renderTable();
+  });
+  $("#filterIn").addEventListener("input", () => renderTable());
+  $("#topN").addEventListener("change", () => { if (state.records.length) render(); });
+
+  // ---------- CSV ----------
+  function toCSV(rows, withRank) {
+    const head = [...(withRank ? ["Rank"] : []), "Title", "Type", "Owner", "Created", "Modified", "Views", "Sharing",
+      "Uploaded media files", "Uploaded media (MB)", "Story data & other files (MB)", ...(state.linked ? ["Linked media items", "Linked media (MB)"] : []),
+      "Total (MB)", "Story URL", "Item URL", "Item ID", "Warning"];
+    const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [head.join(",")];
+    for (const r of rows) {
+      lines.push([...(withRank ? [r.rank] : []), r.title, r.kind, r.owner, isoDate(r.created), isoDate(r.modified), r.views, r.access,
+        r.mediaCount, (r.mediaBytes / MB).toFixed(2), (r.dataBytes / MB).toFixed(2), ...(state.linked ? [r.linkedCount, (r.linkedBytes / MB).toFixed(2)] : []),
+        (r.total / MB).toFixed(2), storyUrl(r), itemUrl(r.id), r.id, r.error || ""].map(q).join(","));
+    }
+    return "﻿" + lines.join("\r\n");
+  }
+  function download(name, text) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  $("#csvTopBtn").addEventListener("click", () => {
+    const rows = currentRows().sort((a, b) => a.rank - b.rank);
+    download(`storymap-top-${rows.length}-${stamp()}.csv`, toCSV(rows, true));
+  });
+  $("#csvAllBtn").addEventListener("click", () => {
+    const rows = state.records.slice().sort((a, b) => b.total - a.total);
+    rows.forEach((r, i) => r.rank = i + 1);
+    download(`storymap-all-${stamp()}.csv`, toCSV(rows, true));
+    renderTable();
+  });
+
+  // ---------- startup ----------
+  (async () => {
+    if (await completeOAuthIfReturning()) return;
+    try {
+      const s = JSON.parse(sessionStorage.getItem("smAudit.session") || "null");
+      if (s && s.token && (!s.expires || s.expires > Date.now() + 60000)) await onToken(s.portal, s.token, s.expires);
+    } catch (e) { try { sessionStorage.removeItem("smAudit.session"); } catch (_) {} }
+  })();
+})();
+</script>
+</body>
+</html>
