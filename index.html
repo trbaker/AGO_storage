@@ -89,6 +89,25 @@
   .errors li{margin:2px 0}
   .hidden{display:none !important}
   footer{color:var(--muted);font-size:12px;margin-top:18px}
+  .apptabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 18px}
+  .apptabs button{background:transparent;border:none;border-bottom:3px solid transparent;border-radius:0;color:var(--muted);padding:10px 16px;font-size:15px}
+  .apptabs button.active{color:var(--ink);border-bottom-color:var(--accent)}
+  .apptabs button:hover{color:var(--ink)}
+  .orgstrip{margin:0 0 12px}
+  .orgstrip .hint{margin:0}
+  .c-story{background:#0b6fbf} .c-file{background:#8fb9dd} .c-feat{background:#d0661d} .c-img{background:#3f8f5a}
+  .ratechips{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .ratechip{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;background:#fafbfc}
+  .ratechip b{display:block;font-size:13px}
+  .ratechip i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+  #uTable{min-width:1180px}
+  #uTable th.grp{text-align:center;cursor:default;border-left:1px solid var(--line)}
+  #uTable th.sub{font-size:11px}
+  #uTable .sep{border-left:1px solid var(--line)}
+  #uTable td.user{min-width:200px}
+  #uTable td.user .meta{font-size:12px;color:var(--muted)}
+  #uTable td.tot{font-weight:700}
+  .tile .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
   footer.credit{text-align:left;margin-top:28px;font-size:13px}
   footer.credit a{color:var(--accent);font-weight:600;text-decoration:none}
   footer.credit a:hover{text-decoration:underline}
@@ -98,7 +117,7 @@
 <header>
   <div>
     <h1>StoryMap Storage Audit</h1>
-    <div class="sub">Largest ArcGIS StoryMaps in your organization, uploaded media included</div>
+    <div class="sub">StoryMap sizes and storage credits across your ArcGIS Online organization</div>
   </div>
   <div class="spacer"></div>
   <div class="who hidden" id="whoBox"><span id="whoText"></span> <button class="ghost" id="signOutBtn">Sign out</button></div>
@@ -154,11 +173,17 @@
     <div id="signinMsg"></div>
   </section>
 
-  <!-- ============ SCAN ============ -->
-  <section class="card hidden" id="scanCard">
-    <h2>2 · Scan StoryMaps</h2>
-    <div id="orgLine" class="hint" style="margin:0 0 6px"></div>
-    <div id="roleWarn"></div>
+  <div id="appArea" class="hidden">
+  <div class="orgstrip"><div id="orgLine" class="hint"></div><div id="roleWarn"></div></div>
+  <nav class="apptabs" role="tablist">
+    <button class="active" data-apptab="stories" role="tab">Top StoryMaps</button>
+    <button data-apptab="users" role="tab">Storage by user</button>
+  </nav>
+
+  <!-- ================= TAB 1: TOP STORYMAPS ================= -->
+  <div class="tabpanel" id="tab-stories">
+  <section class="card" id="scanCard">
+    <h2>Scan StoryMaps</h2>
     <div class="row" style="margin-top:6px;align-items:flex-start">
       <div style="max-width:160px;flex:0 0 160px">
         <label for="topN">Show top</label>
@@ -211,6 +236,63 @@
       </footer>
     </section>
   </section>
+  </div>
+
+  <!-- ================= TAB 2: STORAGE BY USER ================= -->
+  <div class="tabpanel hidden" id="tab-users">
+  <section class="card">
+    <h2>Storage by user</h2>
+    <p class="hint" style="margin:0 0 6px">Adds up every item each member owns and splits it into four storage types. ArcGIS Online bills each type at its own credit rate.</p>
+    <div class="ratechips">
+      <div class="ratechip"><b><i class="c-story"></i>StoryMaps</b>Stories and their uploaded media · file storage, 1.2 credits / GB / month</div>
+      <div class="ratechip"><b><i class="c-file"></i>Other files &amp; media</b>Images, video, PDFs, web maps, packages, tiles… · file storage, 1.2 credits / GB / month</div>
+      <div class="ratechip"><b><i class="c-feat"></i>Hosted feature layers</b>Feature storage · 2.4 credits / 10 MB / month</div>
+      <div class="ratechip"><b><i class="c-img"></i>Hosted imagery layers</b>Imagery storage · 1.2 credits / GB / month</div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button id="uScanBtn">Run storage scan</button>
+      <button class="secondary hidden" id="uCancelBtn">Cancel</button>
+    </div>
+    <div class="progress"><div id="uBar"></div></div>
+    <div class="status" id="uStatus"></div>
+  </section>
+
+  <section class="hidden" id="uResultsWrap">
+    <div class="tiles" id="uTiles" style="margin-bottom:18px"></div>
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Storage and estimated annual credits by user</h2>
+        <div class="spacer"></div>
+        <input type="text" id="uFilterIn" placeholder="Filter by name or username…">
+        <button class="secondary" id="uCsvBtn">Export (CSV)</button>
+      </div>
+      <div class="legend" style="margin-bottom:10px">
+        <span><i class="c-story"></i>StoryMaps</span>
+        <span><i class="c-file"></i>Other files &amp; media</span>
+        <span><i class="c-feat"></i>Hosted feature layers</span>
+        <span><i class="c-img"></i>Hosted imagery layers</span>
+        <span style="margin-left:6px">Bar = share of the user's annual credits</span>
+      </div>
+      <div class="tablewrap">
+        <table id="uTable">
+          <thead id="uThead"></thead>
+          <tbody id="uTbody"></tbody>
+        </table>
+      </div>
+      <div id="uErrorsBox"></div>
+      <footer>
+        Sizes in MB = 1,048,576 bytes. Credits per year = monthly rate × 12, assuming each item stays the same size all year.
+        Rates: <b>file storage</b> (StoryMaps, other files &amp; media) and <b>imagery storage</b> 1.2 credits per GB per month; <b>feature storage</b> 2.4 credits per 10 MB per month.
+        StoryMap sizes include uploaded media; if you've run the Top StoryMaps scan, its measured sizes are used. Linked Image/Video/PDF items are counted once, under the user who owns them, in "Other files &amp; media".
+        Hosted feature layer views and location sharing layers are left out because they aren't billed as feature storage.
+        Feature layer sizes come from each item's reported size, which can include attachments. Attachments are billed at the cheaper file rate, so layers with many photos may be estimated high.
+        Not included: the daily per-image fees for dynamic imagery layers (marked "+ image fees"), ArcGIS Notebooks workspace storage, and fixed-price Premium Feature Data Store plans.
+      </footer>
+    </section>
+  </section>
+  </div>
+  </div>
+
   <footer class="credit">Designed by <a href="https://tbaker.com" target="_blank" rel="noopener">Tom Baker</a></footer>
 </main>
 
@@ -392,7 +474,7 @@
   function showSignedIn() {
     const s = state.self, u = state.user;
     $("#signinCard").classList.add("hidden");
-    $("#scanCard").classList.remove("hidden");
+    $("#appArea").classList.remove("hidden");
     $("#whoBox").classList.remove("hidden");
     $("#whoText").textContent = `${u.fullName || u.username} (${u.username})`;
     $("#orgLine").innerHTML = `Organization: <b>${esc(s.name || s.id)}</b> · ${esc(state.portal)}`;
@@ -403,10 +485,13 @@
 
   $("#signOutBtn").addEventListener("click", () => {
     try { sessionStorage.removeItem("smAudit.session"); } catch (e) {}
-    state.token = null; state.self = null; state.user = null; state.records = [];
+    state.cancel = true;
+    state.token = null; state.self = null; state.user = null; state.records = []; state.users = [];
     $("#whoBox").classList.add("hidden");
-    $("#scanCard").classList.add("hidden");
+    $("#appArea").classList.add("hidden");
     $("#resultsWrap").classList.add("hidden");
+    $("#uResultsWrap").classList.add("hidden");
+    setProgress(0, ""); uProgress(0, "");
     $("#signinCard").classList.remove("hidden");
     showMsg($("#signinMsg"), "info", "Signed out.");
   });
@@ -462,10 +547,17 @@
   $("#scanBtn").addEventListener("click", runScan);
   $("#cancelBtn").addEventListener("click", () => { state.cancel = true; setProgress(0, "Cancelling…"); });
 
+  function setBusy(on) {
+    state.busy = on;
+    $("#scanBtn").disabled = on;
+    $("#uScanBtn").disabled = on;
+  }
+
   async function runScan() {
+    if (state.busy) return;
+    setBusy(true);
     state.cancel = false;
     state.linked = $("#optLinked").checked;
-    $("#scanBtn").disabled = true;
     $("#cancelBtn").classList.remove("hidden");
     setProgress(0, "Finding StoryMaps…");
     const errors = [];
@@ -576,7 +668,7 @@
         setProgress(0, "Scan failed: " + e.message);
       }
     } finally {
-      $("#scanBtn").disabled = false;
+      setBusy(false);
       $("#cancelBtn").classList.add("hidden");
     }
   }
@@ -592,7 +684,6 @@
     { key: "views", label: "Views", num: true },
     { key: "mediaCount", label: "Files", num: true, tip: "Number of media files uploaded to the story" },
     { key: "mediaBytes", label: "Media (MB)", num: true, tip: "Images, video, audio and PDFs uploaded into the story" },
-    ...(state.linked ? [{ key: "linkedBytes", label: "Linked (MB)", num: true, tip: "Separate Image/Video/Audio/PDF items the story links to" }] : []),
     { key: "total", label: "Total (MB)", num: true },
     { key: "credits", label: "Credits / yr", num: true, tip: "Estimated ArcGIS Online file storage credits to host this StoryMap for one year" },
     { key: "links", label: "", nosort: true }
@@ -665,8 +756,7 @@
         <td class="num">${fmtInt(r.views)}</td>
         <td class="num">${fmtInt(r.mediaCount)}</td>
         <td class="num">${fmtMB(r.mediaBytes)}</td>
-        ${state.linked ? `<td class="num" title="${r.linkedCount} linked media item(s)">${fmtMB(r.linkedBytes)}</td>` : ""}
-        <td class="num total">${fmtMB(r.total)}${bar}</td>
+        <td class="num total" title="${state.linked && r.linkedCount ? `Includes ${fmtMB(r.linkedBytes)} MB from ${r.linkedCount} linked media item(s)` : ""}">${fmtMB(r.total)}${bar}</td>
         <td class="num" title="${fmtCred(r.credits / 12)} credits per month">${fmtCred(r.credits)}</td>
         <td><a class="small" href="${esc(storyUrl(r))}" target="_blank" rel="noopener">Open story</a><br><a class="small" href="${esc(itemUrl(r.id))}" target="_blank" rel="noopener">Item page</a></td>
       </tr>`;
@@ -714,6 +804,240 @@
     rows.forEach((r, i) => r.rank = i + 1);
     download(`storymap-all-${stamp()}.csv`, toCSV(rows, true));
     renderTable();
+  });
+
+  // ================= APP TABS =================
+  function showTab(name) {
+    document.querySelectorAll(".apptabs button").forEach(b => b.classList.toggle("active", b.dataset.apptab === name));
+    document.querySelectorAll(".tabpanel").forEach(p => p.classList.toggle("hidden", p.id !== "tab-" + name));
+    try { sessionStorage.setItem("smAudit.tab", name); } catch (e) {}
+  }
+  document.querySelectorAll(".apptabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.apptab)));
+  try { const t = sessionStorage.getItem("smAudit.tab"); if (t === "users" || t === "stories") showTab(t); } catch (e) {}
+
+  // ================= TAB 2: STORAGE BY USER =================
+  const CATS = [
+    { key: "story",   label: "StoryMaps",             cls: "c-story" },
+    { key: "file",    label: "Other files & media",   cls: "c-file" },
+    { key: "feature", label: "Hosted feature layers", cls: "c-feat" },
+    { key: "imagery", label: "Hosted imagery layers", cls: "c-img" }
+  ];
+  const FEATURE_CREDITS_PER_10MB_MONTH = 2.4;
+  const IMAGERY_CREDITS_PER_GB_MONTH = 1.2;
+  function catCredits(cat, bytes) {
+    if (cat === "feature") return bytes / MB / 10 * FEATURE_CREDITS_PER_10MB_MONTH * 12;
+    if (cat === "imagery") return bytes / GB * IMAGERY_CREDITS_PER_GB_MONTH * 12;
+    return bytes / GB * CREDITS_PER_GB_MONTH * 12;           // file storage (StoryMaps + other files)
+  }
+  const fmtSize = (b) => b >= 1024 * MB ? fmtGB(b) + " GB" : fmtMB(b) + " MB";
+
+  function storageCategory(it) {
+    const kw = (it.typeKeywords || []).map(k => String(k).toLowerCase());
+    if (it.type === "StoryMap") return "story";
+    if (it.type === "Feature Service" && kw.includes("hosted service")) {
+      if (kw.includes("view service")) return null;                       // views share the source layer's storage
+      if (kw.some(k => /location ?tracking/.test(k))) return null;         // location sharing isn't feature storage
+      return "feature";
+    }
+    if (it.type === "Image Service" && kw.includes("hosted service")) return "imagery";
+    return "file";
+  }
+  const isDynamicImagery = (it) => (it.typeKeywords || []).some(k => /dynamic imagery/i.test(k));
+
+  function uProgress(frac, text) {
+    $("#uBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+    if (text !== undefined) $("#uStatus").textContent = text;
+  }
+
+  async function listOrgUsers() {
+    const out = [];
+    let start = 1, guard = 0;
+    try {
+      do {
+        const r = await api("/portals/self/users", { start, num: 100 });
+        out.push(...(r.users || []));
+        start = r.nextStart;
+      } while (start && start > 0 && !state.cancel && ++guard < 1000);
+      return out;
+    } catch (e) {
+      if (e.auth) throw e;
+    }
+    out.length = 0; start = 1; guard = 0;
+    try {
+      do {
+        const r = await api("/community/users", { q: `orgid:${state.self.id}`, start, num: 100 });
+        out.push(...(r.results || []));
+        start = r.nextStart;
+      } while (start && start > 0 && !state.cancel && ++guard < 1000);
+    } catch (e) { if (e.auth) throw e; }
+    return out;
+  }
+
+  async function searchAll(q, onPage) {
+    const out = [];
+    let start = 1, total = 0, guard = 0;
+    do {
+      const r = await api("/search", { q, num: 100, start });
+      total = r.total;
+      out.push(...(r.results || []));
+      start = r.nextStart;
+      if (onPage) onPage(out.length, total);
+    } while (start && start > 0 && !state.cancel && ++guard < 200);
+    return { items: out, total };
+  }
+
+  $("#uScanBtn").addEventListener("click", runUserScan);
+  $("#uCancelBtn").addEventListener("click", () => { state.cancel = true; uProgress(0, "Cancelling…"); });
+
+  async function runUserScan() {
+    if (state.busy) return;
+    setBusy(true);
+    state.cancel = false;
+    $("#uCancelBtn").classList.remove("hidden");
+    const errors = [];
+    try {
+      const orgId = state.self.id;
+      uProgress(0.02, "Listing organization members…");
+      const members = await listOrgUsers();
+      if (state.cancel) return uProgress(0, "Scan cancelled.");
+
+      // Gather every item in the org. One org-wide search works up to 10,000 items;
+      // bigger orgs are searched member by member.
+      const items = new Map();
+      const orgQ = orgId ? `orgid:${orgId}` : "*";
+      const first = await api("/search", { q: orgQ, num: 1, start: 1 });
+      if (first.total <= 10000 || !members.length) {
+        const { items: all } = await searchAll(orgQ, (n, t) => uProgress(0.05 + 0.9 * n / Math.max(1, t), `Reading item sizes… ${fmtInt(n)} of ${fmtInt(t)}`));
+        all.forEach(it => items.set(it.id, it));
+        if (first.total > 10000) errors.push({ title: "Search limit", msg: `The organization has ${fmtInt(first.total)} items; ArcGIS search returns at most 10,000, so some may be missing.` });
+      } else {
+        let done = 0;
+        await pool(members, 6, async (m) => {
+          try {
+            const q = `owner:"${String(m.username).replace(/"/g, '\\"')}"` + (orgId ? ` AND orgid:${orgId}` : "");
+            const { items: mine } = await searchAll(q);
+            mine.forEach(it => { if (it.owner === m.username) items.set(it.id, it); });
+          } catch (e) { if (e.auth) throw e; errors.push({ title: m.username, msg: "Couldn't read this member's items: " + e.message }); }
+          done++;
+          uProgress(0.05 + 0.9 * done / members.length, `Reading item sizes… member ${fmtInt(done)} of ${fmtInt(members.length)} (${fmtInt(items.size)} items)`);
+        });
+      }
+      if (state.cancel) return uProgress(0, "Scan cancelled.");
+
+      // Use measured StoryMap sizes from the Top StoryMaps scan when available.
+      const measured = new Map((state.records || []).map(r => [r.id, r.base]));
+
+      const byUser = new Map();
+      for (const m of members) byUser.set(m.username, { username: m.username, fullName: m.fullName || "", role: m.role || "", items: 0, dyn: 0 });
+      for (const it of items.values()) {
+        const cat = storageCategory(it);
+        if (!cat) continue;
+        let u = byUser.get(it.owner);
+        if (!u) { u = { username: it.owner, fullName: "", role: "", items: 0, dyn: 0 }; byUser.set(it.owner, u); }
+        const bytes = cat === "story" && measured.has(it.id) ? measured.get(it.id) : (it.size > 0 ? it.size : 0);
+        u[cat] = (u[cat] || 0) + bytes;
+        u.items++;
+        if (cat === "imagery" && isDynamicImagery(it)) u.dyn++;
+      }
+      const rows = [];
+      for (const u of byUser.values()) {
+        u.totalBytes = 0; u.totalCredits = 0;
+        for (const c of CATS) {
+          u[c.key] = u[c.key] || 0;
+          u[c.key + "Cr"] = catCredits(c.key, u[c.key]);
+          u.totalBytes += u[c.key];
+          u.totalCredits += u[c.key + "Cr"];
+        }
+        rows.push(u);
+      }
+      state.users = rows;
+      state.usersEmpty = rows.filter(u => u.totalBytes === 0).length;
+      state.uErrors = errors;
+      state.uSortKey = "totalCredits"; state.uSortDir = -1;
+      uProgress(1, `Done. Read ${fmtInt(items.size)} items across ${fmtInt(rows.length)} members.`);
+      renderUsers();
+    } catch (e) {
+      if (e.auth) {
+        uProgress(0, "");
+        showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
+      } else uProgress(0, "Scan failed: " + e.message);
+    } finally {
+      setBusy(false);
+      $("#uCancelBtn").classList.add("hidden");
+    }
+  }
+
+  function renderUsers() {
+    const rows = state.users || [];
+    const tot = { totalBytes: 0, totalCredits: 0 };
+    for (const c of CATS) { tot[c.key] = 0; tot[c.key + "Cr"] = 0; }
+    for (const u of rows) {
+      for (const c of CATS) { tot[c.key] += u[c.key]; tot[c.key + "Cr"] += u[c.key + "Cr"]; }
+      tot.totalBytes += u.totalBytes; tot.totalCredits += u.totalCredits;
+    }
+    const withContent = rows.length - (state.usersEmpty || 0);
+    $("#uResultsWrap").classList.remove("hidden");
+    $("#uTiles").innerHTML = CATS.map(c =>
+      `<div class="tile"><div class="k"><span class="dot ${c.cls}"></span>${esc(c.label)}</div><div class="v">${fmtCred(tot[c.key + "Cr"])}</div><div class="s">credits / yr · ${fmtSize(tot[c.key])} stored</div></div>`
+    ).join("") +
+      `<div class="tile"><div class="k">All storage</div><div class="v">${fmtCred(tot.totalCredits)}</div><div class="s">credits / yr · ${fmtSize(tot.totalBytes)} · ${fmtInt(withContent)} members with content</div></div>`;
+    renderUserTable();
+    const errs = state.uErrors || [];
+    $("#uErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
+      errs.slice(0, 200).map(e => `<li><b>${esc(e.title)}</b>: ${esc(e.msg)}</li>`).join("")}</ul></details>` : "";
+  }
+
+  function userRows() {
+    const f = $("#uFilterIn").value.trim().toLowerCase();
+    const k = state.uSortKey, d = state.uSortDir;
+    return (state.users || [])
+      .filter(u => u.totalBytes > 0)
+      .filter(u => !f || u.username.toLowerCase().includes(f) || (u.fullName || "").toLowerCase().includes(f))
+      .sort((a, b) => k === "username" ? d * a.username.localeCompare(b.username) : d * ((a[k] || 0) - (b[k] || 0)));
+  }
+
+  function renderUserTable() {
+    const arrow = (key) => key === state.uSortKey ? `<span class="arrow">${state.uSortDir < 0 ? "▼" : "▲"}</span>` : "";
+    const groups = [...CATS.map(c => ({ key: c.key, label: c.label, cls: c.cls })), { key: "total", label: "Total per user" }];
+    $("#uThead").innerHTML =
+      `<tr><th rowspan="2" data-key="username">User${arrow("username")}</th>${
+        groups.map(g => `<th colspan="2" class="grp">${g.cls ? `<span class="dot ${g.cls}" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px"></span>` : ""}${esc(g.label)}</th>`).join("")}</tr>
+       <tr>${groups.map(g => {
+         const b = g.key === "total" ? "totalBytes" : g.key, c = g.key === "total" ? "totalCredits" : g.key + "Cr";
+         return `<th class="num sub sep" data-key="${b}">MB${arrow(b)}</th><th class="num sub" data-key="${c}">Credits / yr${arrow(c)}</th>`;
+       }).join("")}</tr>`;
+    const rows = userRows();
+    const maxCr = Math.max(1e-9, ...rows.map(u => u.totalCredits));
+    $("#uTbody").innerHTML = rows.map(u => {
+      const bar = `<div class="sizebar">${CATS.map(c => `<span class="${c.cls}" style="width:${(100 * u[c.key + "Cr"] / maxCr).toFixed(2)}%"></span>`).join("")}</div>`;
+      return `<tr>
+        <td class="user"><b>${esc(u.fullName || u.username)}</b><div class="meta">${esc(u.fullName ? u.username : "")}${u.fullName ? " · " : ""}${fmtInt(u.items)} item${u.items === 1 ? "" : "s"}</div></td>
+        ${CATS.map(c => `<td class="num sep">${fmtMB(u[c.key])}</td><td class="num">${fmtCred(u[c.key + "Cr"])}${c.key === "imagery" && u.dyn ? `<div><span class="pill" title="${u.dyn} dynamic imagery layer(s) also have daily per-image fees, not included">+ image fees</span></div>` : ""}</td>`).join("")}
+        <td class="num sep tot">${fmtMB(u.totalBytes)}</td>
+        <td class="num tot">${fmtCred(u.totalCredits)}${bar}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="11" style="color:var(--muted);padding:18px">No members match.</td></tr>`;
+  }
+
+  $("#uThead").addEventListener("click", (e) => {
+    const th = e.target.closest("th[data-key]"); if (!th) return;
+    const k = th.dataset.key;
+    if (state.uSortKey === k) state.uSortDir *= -1;
+    else { state.uSortKey = k; state.uSortDir = k === "username" ? 1 : -1; }
+    renderUserTable();
+  });
+  $("#uFilterIn").addEventListener("input", renderUserTable);
+  $("#uCsvBtn").addEventListener("click", () => {
+    const head = ["Username", "Full name", "Role", "Items",
+      ...CATS.flatMap(c => [`${c.label} (MB)`, `${c.label} credits/yr`]), "Total storage (MB)", "Total credits/yr", "Dynamic imagery layers (per-image fees not included)"];
+    const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [head.join(",")];
+    for (const u of userRows()) {
+      lines.push([u.username, u.fullName, u.role, u.items,
+        ...CATS.flatMap(c => [(u[c.key] / MB).toFixed(2), u[c.key + "Cr"].toFixed(2)]),
+        (u.totalBytes / MB).toFixed(2), u.totalCredits.toFixed(2), u.dyn].map(q).join(","));
+    }
+    download(`storage-credits-by-user-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
 
   // ---------- startup ----------
