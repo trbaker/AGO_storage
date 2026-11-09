@@ -356,7 +356,7 @@
       <footer>
         <b>Views (12 months)</b> and <b>Views (30 days)</b> are the usage counts from each item's Usage tab. For a hosted feature layer, ArcGIS counts usage as requests to the layer: one map view can make several requests.
         They're read from ArcGIS Online's usage reporting; "n/a" means the count couldn't be read, and lifetime views are used for ranking instead.
-        <b>Lifetime views</b> is the item's view count since it was created.
+        <b>Lifetime views (numViews)</b> is the item's own numViews value, read directly from the item when the scan ran; opening the item page adds to it.
         <b>Est. credits / yr</b> = feature data × 2.4 credits per 10 MB per month × 12, plus attachments at the file storage rate (1.2 credits per GB per month × 12). Attachments are measured and removed from the layer's reported size.
         <b>Credits per view</b> = estimated credits per year ÷ (views in the last 12 months + 1).
         Before deleting anything, check the item page's usage, the maps and apps that use it, and with its owner. Consider exporting a backup first. Delete-protected items are marked.
@@ -449,7 +449,7 @@
   class ApiError extends Error { constructor(msg, code) { super(msg); this.code = code; } }
 
   // ---------- troubleshooting log ----------
-  const APP_VERSION = "2026-11-09.3";
+  const APP_VERSION = "2026-11-09.4";
   const LOG = { entries: [], started: Date.now(), dropped: 0, reqs: 0, errs: 0 };
   const LOG_MAX = 5000, LOG_KEEP_HEAD = 400;
   let logRenderPending = false;
@@ -493,7 +493,7 @@
     let res, lastErr;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        res = method === "GET" ? await fetch(url + "?" + p.toString()) : await fetch(url, { method: "POST", body: p });
+        res = method === "GET" ? await fetch(url + "?" + p.toString(), { cache: "no-store" }) : await fetch(url, { method: "POST", body: p, cache: "no-store" });
         if (res.status === 429 || res.status >= 500) {
           lastErr = new ApiError("HTTP " + res.status, res.status);
           logEvent("RETRY", `${tag} → HTTP ${res.status}, retry ${attempt + 1}`);
@@ -1523,7 +1523,10 @@
         try {
           const d = await api(`/content/items/${it.id}`, {}, { method: "GET" });
           it.size = typeof d.size === "number" ? d.size : -1;
-          if (typeof d.numViews === "number") it.numViews = d.numViews;
+          it.searchViews = it.numViews;
+          it.numViews = typeof d.numViews === "number" ? d.numViews : null;   // the item's own numViews
+          it.viewsReadAt = Date.now();
+          if (it.numViews !== it.searchViews) logEvent("DETAIL", `numViews · "${it.title}" (${it.id}): item ${it.numViews ?? "missing"} vs search index ${it.searchViews ?? "missing"}; using the item's value`);
           if (d.url) it.url = d.url;
           it.protected = !!d.protected;
         } catch (e) { if (e.auth) throw e; errors.push({ title: it.title || it.id, msg: "Couldn't read size: " + e.message }); }
@@ -1555,13 +1558,13 @@
         const a = it.attach || 0;
         it.featBytes = a <= it.size ? it.size - a : it.size;
         it.credits = catCredits("feature", it.featBytes) + catCredits("file", a);
-        const uses = it.v12 != null ? it.v12 : (it.numViews || 0);
+        const uses = it.v12 != null ? it.v12 : (it.numViews ?? it.searchViews ?? 0);
         it.perView = it.credits / (uses + 1);
       }
       const ranked = pool100.slice().sort((a, b) => b.perView - a.perView).slice(0, SUSPECT_COUNT);
       ranked.forEach((it, i) => {
         it.rank = i + 1;
-        logEvent("DETAIL", `Suspect #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · lifetime ${it.numViews ?? 0}`);
+        logEvent("DETAIL", `Suspect #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · numViews ${it.numViews ?? "n/a"}`);
       });
       state.suspects = ranked;
       state.sAll = pool100;
@@ -1590,7 +1593,7 @@
     { key: "credits", label: "Est. credits / yr", num: true },
     { key: "v12", label: "Views (12 months)", num: true },
     { key: "v30", label: "Views (30 days)", num: true },
-    { key: "numViews", label: "Lifetime views", num: true },
+    { key: "numViews", label: "Lifetime views (numViews)", num: true },
     { key: "perView", label: "Credits per view", num: true },
     { key: "modified", label: "Last modified" },
     { key: "link", label: "", nosort: true }
@@ -1633,7 +1636,7 @@
       <td class="num" style="font-weight:700">${fmtCred(it.credits)}</td>
       <td class="num">${views(it.v12)}</td>
       <td class="num">${views(it.v30)}</td>
-      <td class="num">${fmtInt(it.numViews || 0)}</td>
+      <td class="num" title="${it.numViews == null ? "The item didn't report numViews" : `The item's numViews, read ${new Date(it.viewsReadAt).toLocaleTimeString()}. Opening the item page adds to this count.`}">${it.numViews == null ? '<span style="color:var(--muted)">n/a</span>' : fmtInt(it.numViews)}</td>
       <td class="num">${fmtCred(it.perView)}</td>
       <td style="white-space:nowrap">${fmtDate(it.modified)}</td>
       <td><a class="small" href="${esc(itemUrl(it.id))}" target="_blank" rel="noopener">Item details</a></td>
@@ -1649,12 +1652,12 @@
   });
   $("#sCsvBtn").addEventListener("click", () => {
     const head = ["Rank", "Title", "Owner", "Sharing", "Delete protected", "Size (MB)", "Attachments (MB)", "Feature data (MB)", "Est. credits per year",
-      "Views last 12 months", "Views last 30 days", "Lifetime views", "Credits per view", "Last modified", "Item details URL", "Item ID"];
+      "Views last 12 months", "Views last 30 days", "Lifetime views (numViews)", "Credits per view", "Last modified", "Item details URL", "Item ID"];
     const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const lines = [head.join(",")];
     for (const it of (state.suspects || []).slice().sort((a, b) => a.rank - b.rank)) {
       lines.push([it.rank, it.title, it.owner, it.access, it.protected ? "yes" : "no", (it.size / MB).toFixed(2), ((it.attach || 0) / MB).toFixed(2), (it.featBytes / MB).toFixed(2),
-        it.credits.toFixed(2), it.v12 ?? "n/a", it.v30 ?? "n/a", it.numViews || 0, it.perView.toFixed(2), isoDate(it.modified), itemUrl(it.id), it.id].map(q).join(","));
+        it.credits.toFixed(2), it.v12 ?? "n/a", it.v30 ?? "n/a", it.numViews ?? "n/a", it.perView.toFixed(2), isoDate(it.modified), itemUrl(it.id), it.id].map(q).join(","));
     }
     download(`top-suspects-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
