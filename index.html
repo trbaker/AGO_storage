@@ -95,17 +95,20 @@
   .apptabs button:hover{color:var(--ink)}
   .orgstrip{margin:0 0 12px}
   .orgstrip .hint{margin:0}
-  .c-story{background:#0b6fbf} .c-file{background:#8fb9dd} .c-feat{background:#d0661d} .c-img{background:#3f8f5a}
+  .c-story{background:#0b6fbf} .c-file{background:#0b6fbf} .c-feat{background:#d0661d} .c-img{background:#3f8f5a} .c-other{background:#8a8f98}
   .ratechips{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
   .ratechip{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;background:#fafbfc}
   .ratechip b{display:block;font-size:13px}
   .ratechip i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
-  #uTable{min-width:1180px}
+  #uTable{min-width:1100px;font-size:13px}
+  #uTable th,#uTable td{padding:7px 7px}
+  #uTable th.sub{letter-spacing:0}
   #uTable th.grp{text-align:center;cursor:default;border-left:1px solid var(--line)}
   #uTable th.sub{font-size:11px}
   #uTable .sep{border-left:1px solid var(--line)}
-  #uTable td.user{min-width:200px}
+  #uTable td.user{min-width:140px}
   #uTable td.user .meta{font-size:12px;color:var(--muted)}
+  #uTable td.num .meta{font-size:11px;color:var(--muted);font-weight:400;white-space:nowrap}
   #uTable td.tot{font-weight:700}
   .tile .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
   #logPre{background:#0f1720;color:#d6e2ee;font:12px/1.5 var(--mono);padding:12px 14px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0}
@@ -243,12 +246,15 @@
   <div class="tabpanel hidden" id="tab-users">
   <section class="card">
     <h2>Storage by user</h2>
-    <p class="hint" style="margin:0 0 6px">Adds up every item each member owns and splits it into four storage types. ArcGIS Online bills each type at its own credit rate.</p>
+    <p class="hint" style="margin:0 0 6px">Follows Esri's storage types: <b>feature storage</b>, <b>imagery storage</b> and <b>file storage</b>. Each member's content is sorted into those types and priced at Esri's credit rate for each one.</p>
     <div class="ratechips">
-      <div class="ratechip"><b><i class="c-story"></i>StoryMaps</b>Stories and their uploaded media · file storage, 1.2 credits / GB / month</div>
-      <div class="ratechip"><b><i class="c-file"></i>Other files &amp; media</b>Images, video, PDFs, web maps, packages, tiles… · file storage, 1.2 credits / GB / month</div>
-      <div class="ratechip"><b><i class="c-feat"></i>Hosted feature layers</b>Feature storage · 2.4 credits / 10 MB / month</div>
-      <div class="ratechip"><b><i class="c-img"></i>Hosted imagery layers</b>Imagery storage · 1.2 credits / GB / month</div>
+      <div class="ratechip"><b><i class="c-feat"></i>Feature storage</b>Feature layers hosted in ArcGIS Online (not their attachments, views or location sharing layers)<br>2.4 credits / 10 MB / month</div>
+      <div class="ratechip"><b><i class="c-img"></i>Imagery storage</b>Imagery layers hosted in ArcGIS Online (tiled and dynamic)<br>1.2 credits / GB / month</div>
+      <div class="ratechip"><b><i class="c-file"></i>File storage</b>Other types of layers and files, including StoryMaps and attachments in hosted feature layers<br>1.2 credits / GB / month</div>
+      <div class="ratechip"><b><i class="c-other"></i>Unclassified</b>Storage ArcGIS reports for a member that the scan couldn't place in a type<br>priced as file storage</div>
+    </div>
+    <div class="checks" style="margin-top:12px">
+      <label><input type="checkbox" id="optAttach" checked><span>Measure <b>attachments</b> in hosted feature layers and count them as file storage, as Esri does (slower for layers with many photos)</span></label>
     </div>
     <div style="margin-top:14px;display:flex;gap:10px">
       <button id="uScanBtn">Run storage scan</button>
@@ -269,11 +275,11 @@
         <button class="secondary" id="uCsvBtn">Export (CSV)</button>
       </div>
       <div class="legend" style="margin-bottom:10px">
-        <span><i class="c-story"></i>StoryMaps</span>
-        <span><i class="c-file"></i>Other files &amp; media</span>
-        <span><i class="c-feat"></i>Hosted feature layers</span>
-        <span><i class="c-img"></i>Hosted imagery layers</span>
-        <span style="margin-left:6px">Bar = share of the user's annual credits</span>
+        <span><i class="c-feat"></i>Feature storage</span>
+        <span><i class="c-img"></i>Imagery storage</span>
+        <span><i class="c-file"></i>File storage</span>
+        <span><i class="c-other"></i>Unclassified</span>
+        <span style="margin-left:6px">Cr / yr = estimated credits per year · bar = share of the member's annual credits</span>
       </div>
       <div class="tablewrap">
         <table id="uTable">
@@ -283,13 +289,15 @@
       </div>
       <div id="uErrorsBox"></div>
       <footer>
-        Sizes in MB = 1,048,576 bytes. Credits per year = monthly rate × 12, assuming each item stays the same size all year.
-        Rates: <b>file storage</b> (StoryMaps, other files &amp; media) and <b>imagery storage</b> 1.2 credits per GB per month; <b>feature storage</b> 2.4 credits per 10 MB per month.
-        StoryMap sizes include uploaded media; if you've run the Top StoryMaps scan, its measured sizes are used. Linked Image/Video/PDF items are counted once, under the user who owns them, in "Other files &amp; media".
-        Hosted feature layer views and location sharing layers are left out because they aren't billed as feature storage.
-        Sizes are read from each member's content list and, where missing, from each item's details (ArcGIS search doesn't report sizes).
-        Feature layer sizes come from each item's reported size, which can include attachments. Attachments are billed at the cheaper file rate, so layers with many photos may be estimated high.
-        Not included: the daily per-image fees for dynamic imagery layers (marked "+ image fees"), ArcGIS Notebooks workspace storage, and fixed-price Premium Feature Data Store plans.
+        Storage types and rates follow Esri's <a href="https://doc.arcgis.com/en/arcgis-online/administer/credits.htm" target="_blank" rel="noopener">Understand credits</a> page.
+        <b>Feature storage</b> (2.4 credits per 10 MB per month) is the data in feature layers hosted in ArcGIS Online. Views, location sharing layers and feature collections aren't feature storage, and attachments are counted as file storage.
+        Settings such as Enable Sync, Keep track of changes, and optimized drawing make feature storage grow over time; that growth is included in the size ArcGIS reports for each layer.
+        <b>Imagery storage</b> (1.2 credits per GB per month) is imagery layers hosted in ArcGIS Online. Dynamic imagery layers also have daily per-image fees, which aren't included (marked "+ image fees").
+        <b>File storage</b> (1.2 credits per GB per month) is everything else: StoryMaps and their uploaded media, attachments in hosted feature layers, files, web maps, tile, vector tile and scene layers, feature collections and so on.
+        <b>Unclassified</b> is the storage ArcGIS reports for a member (their storage usage) minus everything the scan placed in a type. It's priced as file storage; if it's really feature data, the real cost is higher.
+        Sizes in MB = 1,048,576 bytes. Credits per year = monthly rate × 12, assuming sizes stay the same all year. Sizes come from each member's content list and item details (ArcGIS search doesn't report sizes).
+        If you've run the Top StoryMaps scan, its measured StoryMap sizes are used. Not included: ArcGIS Notebooks workspace storage and fixed-price Premium Feature Data Store plans.
+        For the official numbers, see the Storage tab of your organization's status dashboard.
       </footer>
     </section>
   </section>
@@ -379,7 +387,7 @@
   class ApiError extends Error { constructor(msg, code) { super(msg); this.code = code; } }
 
   // ---------- troubleshooting log ----------
-  const APP_VERSION = "2026-11-06.2";
+  const APP_VERSION = "2026-11-09.1";
   const LOG = { entries: [], started: Date.now(), dropped: 0, reqs: 0, errs: 0 };
   const LOG_MAX = 5000, LOG_KEEP_HEAD = 400;
   let logRenderPending = false;
@@ -934,32 +942,34 @@
   document.querySelectorAll(".apptabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.apptab)));
   try { const t = sessionStorage.getItem("smAudit.tab"); if (t === "users" || t === "stories") showTab(t); } catch (e) {}
 
-  // ================= TAB 2: STORAGE BY USER =================
+  // ================= TAB 2: STORAGE BY USER (Esri storage types) =================
+  // Esri: "There are three types of storage that consume credits: feature storage, imagery storage, and file storage."
   const CATS = [
-    { key: "story",   label: "StoryMaps",             cls: "c-story" },
-    { key: "file",    label: "Other files & media",   cls: "c-file" },
-    { key: "feature", label: "Hosted feature layers", cls: "c-feat" },
-    { key: "imagery", label: "Hosted imagery layers", cls: "c-img" }
+    { key: "feature", label: "Feature storage", cls: "c-feat" },
+    { key: "imagery", label: "Imagery storage", cls: "c-img" },
+    { key: "file",    label: "File storage",    cls: "c-file" },
+    { key: "other",   label: "Unclassified",    cls: "c-other" }
   ];
-  const FEATURE_CREDITS_PER_10MB_MONTH = 2.4;
-  const IMAGERY_CREDITS_PER_GB_MONTH = 1.2;
+  const FEATURE_CREDITS_PER_10MB_MONTH = 2.4;   // feature storage
+  const IMAGERY_CREDITS_PER_GB_MONTH = 1.2;     // imagery storage
   function catCredits(cat, bytes) {
     if (cat === "feature") return bytes / MB / 10 * FEATURE_CREDITS_PER_10MB_MONTH * 12;
     if (cat === "imagery") return bytes / GB * IMAGERY_CREDITS_PER_GB_MONTH * 12;
-    return bytes / GB * CREDITS_PER_GB_MONTH * 12;           // file storage (StoryMaps + other files)
+    return bytes / GB * CREDITS_PER_GB_MONTH * 12;           // file storage (and unclassified, priced as file)
   }
   const fmtSize = (b) => b >= 1024 * MB ? fmtGB(b) + " GB" : fmtMB(b) + " MB";
 
-  function storageCategory(it) {
+  // Returns { type: "feature" | "imagery" | "file", part } or null for items that aren't storage (views, location sharing).
+  function classifyItem(it) {
     const kw = (it.typeKeywords || []).map(k => String(k).toLowerCase());
-    if (it.type === "StoryMap") return "story";
     if (it.type === "Feature Service" && kw.includes("hosted service")) {
-      if (kw.includes("view service")) return null;                       // views share the source layer's storage
-      if (kw.some(k => /location ?tracking/.test(k))) return null;         // location sharing isn't feature storage
-      return "feature";
+      if (kw.includes("view service")) return null;                     // views use their source layer's storage
+      if (kw.some(k => /location ?tracking/.test(k))) return null;       // location sharing isn't feature storage
+      return { type: "feature", part: "feature" };
     }
-    if (it.type === "Image Service" && kw.includes("hosted service")) return "imagery";
-    return "file";
+    if (it.type === "Image Service" && kw.includes("hosted service")) return { type: "imagery", part: "imagery" };
+    if (it.type === "StoryMap") return { type: "file", part: "story" };
+    return { type: "file", part: "otherFiles" };
   }
   const isDynamicImagery = (it) => (it.typeKeywords || []).some(k => /dynamic imagery/i.test(k));
 
@@ -1005,9 +1015,6 @@
     return { items: out, total };
   }
 
-  $("#uScanBtn").addEventListener("click", runUserScan);
-  $("#uCancelBtn").addEventListener("click", () => { state.cancel = true; uProgress(0, "Cancelling…"); });
-
   async function listUserContent(username) {
     const base = `/content/users/${encodeURIComponent(username)}`;
     const out = [];
@@ -1026,13 +1033,51 @@
     return out;
   }
 
+  // Total bytes of attachments in a hosted feature layer (all layers and tables).
+  async function measureAttachments(it) {
+    const base = String(it.url || "").replace(/\/+$/, "");
+    if (!/\/FeatureServer$/i.test(base)) return { bytes: 0, count: 0, layers: 0 };
+    const info = await api(`${base}/layers`, {}, { method: "GET" });
+    const withAtt = [...(info.layers || []), ...(info.tables || [])].filter(l => l.hasAttachments);
+    let bytes = 0, count = 0;
+    for (const l of withAtt) {
+      const page = Math.max(1, Math.min(l.maxRecordCount || 1000, 2000));
+      const seen = new Set();
+      let offset = 0, guard = 0;
+      while (!state.cancel && guard++ < 2000) {
+        const r = await api(`${base}/${l.id}/queryAttachments`,
+          { definitionExpression: "1=1", resultOffset: offset, resultRecordCount: page }, { method: "GET" });
+        const groups = r.attachmentGroups || [];
+        let n = 0, fresh = 0;
+        for (const g of groups) for (const a of (g.attachmentInfos || [])) {
+          n++;
+          const key = String(a.globalId || a.id) + ":" + String(g.parentObjectId ?? g.parentGlobalId ?? "");
+          if (seen.has(key)) continue;
+          seen.add(key); fresh++;
+          bytes += a.size > 0 ? Number(a.size) : 0;
+        }
+        count += fresh;
+        if (!n || !fresh) break;
+        // resultRecordCount may count features or attachments depending on the service; handle both.
+        if (groups.length >= page) offset += groups.length;
+        else if (n >= page || r.exceededTransferLimit) offset += n;
+        else break;
+      }
+    }
+    return { bytes, count, layers: withAtt.length };
+  }
+
+  $("#uScanBtn").addEventListener("click", runUserScan);
+  $("#uCancelBtn").addEventListener("click", () => { state.cancel = true; uProgress(0, "Cancelling…"); });
+
   async function runUserScan() {
     if (state.busy) return;
     setBusy(true);
     state.cancel = false;
     $("#uCancelBtn").classList.remove("hidden");
     const errors = [];
-    logEvent("INFO", "=== Storage by user scan started ===");
+    const doAttach = $("#optAttach").checked;
+    logEvent("INFO", `=== Storage by user scan started (measure attachments ${doAttach ? "on" : "off"}) ===`);
     try {
       const orgId = state.self.id;
 
@@ -1042,7 +1087,6 @@
       logEvent("INFO", `Members found: ${members.length}`);
       if (state.cancel) return uProgress(0, "Scan cancelled.");
       if (!members.length) {
-        // Fall back to the owners found by an org-wide search.
         logEvent("WARN", "Member list was empty or blocked; falling back to item owners from an org-wide search.");
         errors.push({ title: "Members", msg: "Couldn't list organization members; using owners of searchable items instead." });
         const { items: found } = await searchAll(orgId ? `orgid:${orgId}` : "*");
@@ -1062,7 +1106,7 @@
           errors.push({ title: m.username, msg: "Couldn't list this member's content: " + e.message });
         }
         done++;
-        uProgress(0.05 + 0.6 * done / members.length, `Listing content… member ${fmtInt(done)} of ${fmtInt(members.length)} (${fmtInt(items.size)} items)`);
+        uProgress(0.05 + 0.45 * done / members.length, `Listing content… member ${fmtInt(done)} of ${fmtInt(members.length)} (${fmtInt(items.size)} items)`);
       });
       if (state.cancel) return uProgress(0, "Scan cancelled.");
 
@@ -1075,43 +1119,80 @@
           const det = await api(`/content/items/${it.id}`, {}, { method: "GET" });
           it.size = typeof det.size === "number" ? det.size : -1;
           if (!it.typeKeywords && det.typeKeywords) it.typeKeywords = det.typeKeywords;
+          if (!it.url && det.url) it.url = det.url;
         } catch (e) {
           if (e.auth) throw e;
           errors.push({ title: it.title || it.id, msg: `Couldn't read size (owner ${it.owner}): ${e.message}` });
         }
         done++;
         if (done % 10 === 0 || done === needSize.length)
-          uProgress(0.65 + 0.33 * done / Math.max(1, needSize.length), `Reading item sizes… ${fmtInt(done)} of ${fmtInt(needSize.length)}`);
+          uProgress(0.5 + 0.25 * done / Math.max(1, needSize.length), `Reading item sizes… ${fmtInt(done)} of ${fmtInt(needSize.length)}`);
       });
       if (state.cancel) return uProgress(0, "Scan cancelled.");
 
-      // 4. Aggregate
+      // 4. Attachments in hosted feature layers -> file storage (Esri counts them as file storage)
+      const featureItems = [...items.values()].filter(it => { const c = classifyItem(it); return c && c.type === "feature"; });
+      const attach = new Map();
+      if (doAttach && featureItems.length) {
+        done = 0;
+        await pool(featureItems, 4, async (it) => {
+          try {
+            const a = await measureAttachments(it);
+            attach.set(it.id, a.bytes);
+            if (a.count) logEvent("DETAIL", `Attachments · "${it.title}" (${it.id}, owner ${it.owner}): ${fmtInt(a.count)} attachments, ${fmtMB(a.bytes)} MB in ${a.layers} layer(s) · item size reported ${fmtMB(Math.max(0, it.size))} MB`);
+          } catch (e) {
+            if (e.auth) throw e;
+            errors.push({ title: it.title || it.id, msg: "Couldn't measure attachments: " + e.message });
+          }
+          done++;
+          uProgress(0.75 + 0.23 * done / featureItems.length, `Measuring attachments… layer ${fmtInt(done)} of ${fmtInt(featureItems.length)}`);
+        });
+        if (state.cancel) return uProgress(0, "Scan cancelled.");
+      }
+
+      // 5. Aggregate by Esri storage type
       const measured = new Map((state.records || []).map(r => [r.id, r.base]));
-      const byUser = new Map();
-      for (const m of members) byUser.set(m.username, {
+      const blank = (m) => ({
         username: m.username, fullName: m.fullName || "", role: m.role || "",
-        reported: typeof m.storageUsage === "number" ? m.storageUsage : null, items: 0, dyn: 0
+        reported: typeof m.storageUsage === "number" ? m.storageUsage : null,
+        items: 0, dyn: 0, feature: 0, imagery: 0, file: 0, story: 0, attach: 0, otherFiles: 0, skippedBytes: 0
       });
+      const byUser = new Map();
+      for (const m of members) byUser.set(m.username, blank(m));
       let unknown = 0;
-      const catCount = { story: 0, file: 0, feature: 0, imagery: 0, skipped: 0 };
+      const typeCount = { feature: 0, imagery: 0, file: 0, skipped: 0 };
       for (const it of items.values()) {
-        const cat = storageCategory(it);
-        if (!cat) { catCount.skipped++; continue; }
-        catCount[cat]++;
         let u = byUser.get(it.owner);
-        if (!u) { u = { username: it.owner, fullName: "", role: "", reported: null, items: 0, dyn: 0 }; byUser.set(it.owner, u); }
+        if (!u) { u = blank({ username: it.owner }); byUser.set(it.owner, u); }
+        const c = classifyItem(it);
+        const size = it.size > 0 ? it.size : 0;
+        if (!c) { typeCount.skipped++; u.skippedBytes += size; continue; }
         if (!(it.size >= 0)) unknown++;
-        const bytes = cat === "story" && measured.has(it.id) ? measured.get(it.id) : (it.size > 0 ? it.size : 0);
-        u[cat] = (u[cat] || 0) + bytes;
+        typeCount[c.type]++;
         u.items++;
-        if (cat === "imagery" && isDynamicImagery(it)) u.dyn++;
+        if (c.part === "story") {
+          const b = measured.has(it.id) ? measured.get(it.id) : size;
+          u.story += b; u.file += b;
+        } else if (c.part === "otherFiles") {
+          u.otherFiles += size; u.file += size;
+        } else if (c.type === "feature") {
+          u.feature += size;                                  // ArcGIS-reported layer size (feature storage)
+          const a = attach.get(it.id) || 0;
+          u.attach += a; u.file += a;                          // attachments are file storage
+        } else if (c.type === "imagery") {
+          u.imagery += size;
+          if (isDynamicImagery(it)) u.dyn++;
+        }
       }
       if (unknown) errors.push({ title: "Unknown sizes", msg: `${fmtInt(unknown)} items had no size available and were counted as 0.` });
-      const rows = [];
+
+      const rows = [], gaps = [];
       for (const u of byUser.values()) {
+        const placed = u.feature + u.imagery + u.file + u.skippedBytes;
+        u.other = u.reported != null ? Math.max(0, u.reported - placed) : 0;
+        gaps.push({ username: u.username, reported: u.reported, placed, gap: u.reported != null ? u.reported - placed : null });
         u.totalBytes = 0; u.totalCredits = 0;
         for (const c of CATS) {
-          u[c.key] = u[c.key] || 0;
           u[c.key + "Cr"] = catCredits(c.key, u[c.key]);
           u.totalBytes += u[c.key];
           u.totalCredits += u[c.key + "Cr"];
@@ -1119,14 +1200,17 @@
         rows.push(u);
       }
       const sum = (k) => rows.reduce((a, u) => a + u[k], 0);
-      const reportedTotal = rows.reduce((a, u) => a + (u.reported || 0), 0);
-      logEvent("SUMMARY", `Storage by user: ${rows.length} members · ${items.size} items (StoryMaps ${catCount.story}, other files ${catCount.file}, feature ${catCount.feature}, imagery ${catCount.imagery}, skipped views/tracking ${catCount.skipped}) · unknown sizes ${unknown}`);
-      logEvent("SUMMARY", `Totals MB: StoryMaps ${fmtMB(sum("story"))} · other ${fmtMB(sum("file"))} · feature ${fmtMB(sum("feature"))} · imagery ${fmtMB(sum("imagery"))} · computed ${fmtMB(sum("totalBytes"))} vs ArcGIS-reported member storageUsage ${fmtMB(reportedTotal)} · credits/yr ${fmtCred(sum("totalCredits"))}`);
+      logEvent("SUMMARY", `Storage by user: ${rows.length} members · ${items.size} items (feature ${typeCount.feature}, imagery ${typeCount.imagery}, file ${typeCount.file}, not storage: views/location sharing ${typeCount.skipped}) · unknown sizes ${unknown}`);
+      logEvent("SUMMARY", `Feature storage ${fmtMB(sum("feature"))} MB · imagery storage ${fmtMB(sum("imagery"))} MB · file storage ${fmtMB(sum("file"))} MB (StoryMaps ${fmtMB(sum("story"))}, attachments ${fmtMB(sum("attach"))}, other files ${fmtMB(sum("otherFiles"))}) · unclassified ${fmtMB(sum("other"))} MB`);
+      gaps.filter(g => g.gap !== null).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).slice(0, 25).forEach(g =>
+        logEvent("DETAIL", `${g.username}: ArcGIS-reported ${fmtMB(g.reported)} MB · placed in a storage type ${fmtMB(g.placed)} MB · difference ${g.gap >= 0 ? "+" : ""}${fmtMB(g.gap)} MB`));
+      logEvent("SUMMARY", `Estimated credits/yr: feature ${fmtCred(sum("featureCr"))} · imagery ${fmtCred(sum("imageryCr"))} · file ${fmtCred(sum("fileCr"))} · unclassified ${fmtCred(sum("otherCr"))} · total ${fmtCred(sum("totalCredits"))}`);
+
       state.users = rows;
       state.usersEmpty = rows.filter(u => u.totalBytes === 0).length;
       state.uErrors = errors;
       state.uSortKey = "totalCredits"; state.uSortDir = -1;
-      uProgress(1, `Done. Read ${fmtInt(items.size)} items across ${fmtInt(rows.length)} members.`);
+      uProgress(1, `Done. Read ${fmtInt(items.size)} items across ${fmtInt(rows.length)} members${doAttach ? `, measured attachments in ${fmtInt(featureItems.length)} hosted feature layers` : ""}.`);
       renderUsers();
     } catch (e) {
       logEvent("ERROR", "Storage by user scan stopped: " + e.message);
@@ -1142,18 +1226,25 @@
 
   function renderUsers() {
     const rows = state.users || [];
-    const tot = { totalBytes: 0, totalCredits: 0 };
+    const tot = { totalBytes: 0, totalCredits: 0, story: 0, attach: 0, otherFiles: 0 };
     for (const c of CATS) { tot[c.key] = 0; tot[c.key + "Cr"] = 0; }
     for (const u of rows) {
       for (const c of CATS) { tot[c.key] += u[c.key]; tot[c.key + "Cr"] += u[c.key + "Cr"]; }
       tot.totalBytes += u.totalBytes; tot.totalCredits += u.totalCredits;
+      tot.story += u.story; tot.attach += u.attach; tot.otherFiles += u.otherFiles;
     }
     const withContent = rows.length - (state.usersEmpty || 0);
+    const sub = {
+      feature: "hosted feature layers",
+      imagery: "hosted imagery layers",
+      file: `StoryMaps ${fmtSize(tot.story)} · attachments ${fmtSize(tot.attach)} · other ${fmtSize(tot.otherFiles)}`,
+      other: "priced as file storage"
+    };
     $("#uResultsWrap").classList.remove("hidden");
     $("#uTiles").innerHTML = CATS.map(c =>
-      `<div class="tile"><div class="k"><span class="dot ${c.cls}"></span>${esc(c.label)}</div><div class="v">${fmtCred(tot[c.key + "Cr"])}</div><div class="s">credits / yr · ${fmtSize(tot[c.key])} stored</div></div>`
+      `<div class="tile"><div class="k"><span class="dot ${c.cls}"></span>${esc(c.label)}</div><div class="v">${fmtCred(tot[c.key + "Cr"])}</div><div class="s">credits / yr · ${fmtSize(tot[c.key])}<br>${esc(sub[c.key])}</div></div>`
     ).join("") +
-      `<div class="tile"><div class="k">All storage</div><div class="v">${fmtCred(tot.totalCredits)}</div><div class="s">credits / yr · ${fmtSize(tot.totalBytes)} · ${fmtInt(rows.length)} members, ${fmtInt(withContent)} with content</div></div>`;
+      `<div class="tile"><div class="k">All storage</div><div class="v">${fmtCred(tot.totalCredits)}</div><div class="s">credits / yr · ${fmtSize(tot.totalBytes)}<br>${fmtInt(rows.length)} members, ${fmtInt(withContent)} with content</div></div>`;
     renderUserTable();
     const errs = state.uErrors || [];
     $("#uErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
@@ -1177,19 +1268,31 @@
         groups.map(g => `<th colspan="2" class="grp">${g.cls ? `<span class="dot ${g.cls}" style="display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px"></span>` : ""}${esc(g.label)}</th>`).join("")}</tr>
        <tr>${groups.map(g => {
          const b = g.key === "total" ? "totalBytes" : g.key, c = g.key === "total" ? "totalCredits" : g.key + "Cr";
-         return `<th class="num sub sep" data-key="${b}">MB${arrow(b)}</th><th class="num sub" data-key="${c}">Credits / yr${arrow(c)}</th>`;
+         return `<th class="num sub sep" data-key="${b}">MB${arrow(b)}</th><th class="num sub" data-key="${c}">Cr / yr${arrow(c)}</th>`;
        }).join("")}</tr>`;
     const rows = userRows();
     const maxCr = Math.max(1e-9, ...rows.map(u => u.totalCredits));
+    const cell = (u, c) => {
+      let title = "", extra = "";
+      if (c.key === "file" && u.file > 0) {
+        const parts = [["StoryMaps", u.story], ["attachments", u.attach], ["other", u.otherFiles]].filter(p => p[1] > 0);
+        title = parts.map(p => `${p[0]} ${fmtMB(p[1])} MB`).join(" · ");
+        extra = `<div class="meta">${esc(parts.map(p => `${p[0]} ${fmtMB(p[1])}`).join(" · "))}</div>`;
+      }
+      if (c.key === "other") title = u.reported == null ? "ArcGIS didn't report a storage total for this member"
+        : `ArcGIS reports ${fmtMB(u.reported)} MB for this member; ${fmtMB(u.reported - u.other)} MB was placed in a storage type`;
+      return `<td class="num sep"${title ? ` title="${esc(title)}"` : ""}>${fmtMB(u[c.key])}${extra}</td>` +
+        `<td class="num">${fmtCred(u[c.key + "Cr"])}${c.key === "imagery" && u.dyn ? `<div><span class="pill" title="${u.dyn} dynamic imagery layer(s) also have daily per-image fees, not included">+ image fees</span></div>` : ""}</td>`;
+    };
     $("#uTbody").innerHTML = rows.map(u => {
       const bar = `<div class="sizebar">${CATS.map(c => `<span class="${c.cls}" style="width:${(100 * u[c.key + "Cr"] / maxCr).toFixed(2)}%"></span>`).join("")}</div>`;
       return `<tr>
         <td class="user"><b>${esc(u.fullName || u.username)}</b><div class="meta">${esc(u.fullName ? u.username : "")}${u.fullName ? " · " : ""}${fmtInt(u.items)} item${u.items === 1 ? "" : "s"}</div></td>
-        ${CATS.map(c => `<td class="num sep">${fmtMB(u[c.key])}</td><td class="num">${fmtCred(u[c.key + "Cr"])}${c.key === "imagery" && u.dyn ? `<div><span class="pill" title="${u.dyn} dynamic imagery layer(s) also have daily per-image fees, not included">+ image fees</span></div>` : ""}</td>`).join("")}
+        ${CATS.map(c => cell(u, c)).join("")}
         <td class="num sep tot">${fmtMB(u.totalBytes)}</td>
         <td class="num tot">${fmtCred(u.totalCredits)}${bar}</td>
       </tr>`;
-    }).join("") || `<tr><td colspan="11" style="color:var(--muted);padding:18px">No members match.</td></tr>`;
+    }).join("") || `<tr><td colspan="${3 + CATS.length * 2}" style="color:var(--muted);padding:18px">No members match.</td></tr>`;
   }
 
   $("#uThead").addEventListener("click", (e) => {
@@ -1203,13 +1306,21 @@
   $("#uHideEmpty").addEventListener("change", renderUserTable);
   $("#uCsvBtn").addEventListener("click", () => {
     const head = ["Username", "Full name", "Role", "Items",
-      ...CATS.flatMap(c => [`${c.label} (MB)`, `${c.label} credits/yr`]), "Total storage (MB)", "Total credits/yr", "ArcGIS-reported storage (MB)", "Dynamic imagery layers (per-image fees not included)"];
+      "Feature storage (MB)", "Feature storage credits/yr",
+      "Imagery storage (MB)", "Imagery storage credits/yr",
+      "File storage (MB)", "File storage credits/yr", "File: StoryMaps (MB)", "File: attachments (MB)", "File: other files (MB)",
+      "Unclassified (MB)", "Unclassified credits/yr",
+      "Total storage (MB)", "Total credits/yr", "ArcGIS-reported storage (MB)", "Dynamic imagery layers (per-image fees not included)"];
     const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const f2 = (b) => (b / MB).toFixed(2);
     const lines = [head.join(",")];
     for (const u of userRows()) {
       lines.push([u.username, u.fullName, u.role, u.items,
-        ...CATS.flatMap(c => [(u[c.key] / MB).toFixed(2), u[c.key + "Cr"].toFixed(2)]),
-        (u.totalBytes / MB).toFixed(2), u.totalCredits.toFixed(2), u.reported == null ? "" : (u.reported / MB).toFixed(2), u.dyn].map(q).join(","));
+        f2(u.feature), u.featureCr.toFixed(2),
+        f2(u.imagery), u.imageryCr.toFixed(2),
+        f2(u.file), u.fileCr.toFixed(2), f2(u.story), f2(u.attach), f2(u.otherFiles),
+        f2(u.other), u.otherCr.toFixed(2),
+        f2(u.totalBytes), u.totalCredits.toFixed(2), u.reported == null ? "" : f2(u.reported), u.dyn].map(q).join(","));
     }
     download(`storage-credits-by-user-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
