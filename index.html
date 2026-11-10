@@ -69,7 +69,7 @@
   .tile .v{font-size:24px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
   .tile .s{font-size:12px;color:var(--muted)}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-  .toolbar input{max-width:320px}
+  .toolbar input{max-width:240px}
   .toolbar .spacer{flex:1}
   .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:8px}
   table{border-collapse:collapse;width:100%;min-width:1100px;font-variant-numeric:tabular-nums}
@@ -97,10 +97,17 @@
   .errors li{margin:2px 0}
   .hidden{display:none !important}
   footer{color:var(--muted);font-size:12px;margin-top:18px}
-  .apptabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 18px}
-  .apptabs button{background:transparent;border:none;border-bottom:3px solid transparent;border-radius:0;color:var(--muted);padding:10px 16px;font-size:15px}
-  .apptabs button.active{color:var(--ink);border-bottom-color:var(--accent)}
-  .apptabs button:hover{color:var(--ink)}
+  /* Folder-style tabs: the active tab joins its panel; each panel is a framed section */
+  :root{--tab-frame:#c9d2dc; --tab-panel:#e8edf3; --tab-idle:#f7f9fb}
+  .apptabs{display:flex;gap:6px;margin:0;padding:0 2px;position:relative;z-index:1;flex-wrap:wrap}
+  .apptabs button{background:var(--tab-idle);border:1px solid var(--tab-frame);border-bottom:none;border-radius:10px 10px 0 0;
+    color:var(--muted);padding:10px 20px 11px;font-size:15px;font-weight:600;margin-bottom:-1px;position:relative;
+    box-shadow:inset 0 -1px 0 var(--tab-frame)}
+  .apptabs button:hover{background:#fff;color:var(--ink)}
+  .apptabs button.active{background:var(--tab-panel);color:var(--ink);box-shadow:inset 0 3px 0 var(--accent);padding-bottom:12px}
+  .apptabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+  .tabpanel{background:var(--tab-panel);border:1px solid var(--tab-frame);border-radius:0 12px 12px 12px;padding:16px 14px 2px;margin-bottom:18px}
+  .tabpanel > .card, .tabpanel > section > .card, .tabpanel .tiles{box-shadow:0 1px 2px rgba(20,32,45,.05)}
   .orgstrip{margin:0 0 12px}
   .orgstrip .hint{margin:0}
   .c-story{background:#0b6fbf} .c-file{background:#0b6fbf} .c-feat{background:#d0661d} .c-img{background:#3f8f5a} .c-other{background:#8a8f98}
@@ -108,15 +115,16 @@
   .ratechip{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;background:#fafbfc}
   .ratechip b{display:block;font-size:13px}
   .ratechip i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
-  #uTable{min-width:1100px;font-size:13px}
-  #sTable{min-width:1100px;font-size:13px}
+  #uTable{min-width:1040px;font-size:13px}
+  #sTable{min-width:960px;font-size:13px}
   #iTable{min-width:1000px;font-size:13px}
   #iTable th,#iTable td{padding:8px 9px}
   #iTable td.title{min-width:200px}
   #iTable th .when{font-weight:500;text-transform:none;font-size:11px;letter-spacing:0}
   #iTable .meta{font-size:12px;color:var(--muted)}
-  #sTable th,#sTable td{padding:8px 8px}
-  #sTable td.title{min-width:240px}
+  #sTable th,#sTable td{padding:8px 7px}
+  #sTable th{white-space:normal;vertical-align:bottom;line-height:1.25}
+  #sTable td.title{min-width:220px}
   #sTable .meta .pill{margin-left:4px}
   .dashbar{display:flex;height:34px;border-radius:6px;overflow:hidden;background:#eef1f4;border:1px solid var(--line)}
   .dashbar span{display:block;height:100%}
@@ -207,7 +215,7 @@
   <nav class="apptabs" role="tablist">
     <button class="active" data-apptab="suspects" role="tab">Large, underused items</button>
     <button data-apptab="inactive" role="tab">Inactive users</button>
-    <button data-apptab="stories" role="tab">Top StoryMaps</button>
+    <button data-apptab="stories" role="tab">Large storymaps</button>
     <button data-apptab="users" role="tab">Storage by user</button>
   </nav>
 
@@ -363,7 +371,7 @@
         <b>File storage</b> (1.2 credits per GB per month) is everything else: StoryMaps and their uploaded media, attachments in hosted feature layers, files, web maps, feature collections and so on. The status dashboard lists hosted tile, scene and vector tile layers separately (Tile, Scene, Vector Tile), so the summary does too.
         <b>Unclassified</b> is the storage ArcGIS reports for a member (their storage usage) minus everything the scan placed in a type. It's priced as file storage; if it's really feature data, the real cost is higher.
         Sizes in MB = 1,048,576 bytes. Credits per year = monthly rate × 12, assuming sizes stay the same all year. The dashboard shows what was actually charged over a past period, including items that have since changed or been deleted, so expect small differences. Sizes come from each member's content list and item details (ArcGIS search doesn't report sizes).
-        If you've run the Top StoryMaps scan, its measured StoryMap sizes are used. Not included: ArcGIS Notebooks workspace storage and fixed-price Premium Feature Data Store plans.
+        If you've run the Large storymaps scan, its measured StoryMap sizes are used. Not included: ArcGIS Notebooks workspace storage and fixed-price Premium Feature Data Store plans.
         For the official numbers, see the Storage tab of your organization's status dashboard.
       </footer>
     </section>
@@ -749,7 +757,7 @@
 
   async function runScan() {
     if (state.busy) return;
-    logEvent("INFO", `=== Top StoryMaps scan started (show top ${$("#topN").value}, linked media ${$("#optLinked").checked ? "on" : "off"}) ===`);
+    logEvent("INFO", `=== Large storymaps scan started (show top ${$("#topN").value}, linked media ${$("#optLinked").checked ? "on" : "off"}) ===`);
     setBusy(true);
     state.cancel = false;
     state.linked = $("#optLinked").checked;
@@ -857,7 +865,7 @@
       state.records = records;
       state.errors = errors;
       state.sortKey = "total"; state.sortDir = -1;
-      logEvent("SUMMARY", `Top StoryMaps: ${records.length} StoryMaps · ${fmtMB(records.reduce((a, r) => a + r.total, 0))} MB total · ${records.filter(r => r.itemSize > 0).length} with item size from item details · ${records.filter(r => r.resCount > 0).length} with uploaded files · ${errors.length} warnings`);
+      logEvent("SUMMARY", `Large storymaps: ${records.length} StoryMaps · ${fmtMB(records.reduce((a, r) => a + r.total, 0))} MB total · ${records.filter(r => r.itemSize > 0).length} with item size from item details · ${records.filter(r => r.resCount > 0).length} with uploaded files · ${errors.length} warnings`);
       setProgress(1, `Done. Scanned ${fmtInt(records.length)} StoryMaps.`);
       render();
     } catch (e) {
