@@ -272,7 +272,7 @@
   <section class="card">
     <h2>Overview</h2>
     <p style="margin:0 0 6px">Credit consumption across every service in your organization, and whether your credits will last until the current term ends on <b>July 31, 2027</b>.</p>
-    <p class="hint" style="margin:0">Most school organizations had their credits reset to 50,000 on August 1, 2026. The projection uses your actual balance and the credits used since then.</p>
+    <p class="hint" style="margin:0">Most school organizations had their credits reset to 50,000 on August 1, 2025. The projection uses your actual balance and the credits used since then.</p>
     <div style="margin-top:14px;display:flex;gap:10px">
       <button id="oScanBtn">Check credit consumption</button>
       <button class="secondary hidden" id="oCancelBtn">Cancel</button>
@@ -287,7 +287,7 @@
 
     <section class="card">
       <div class="toolbar" style="margin-bottom:2px">
-        <h2 style="margin:0">Credits remaining, August 1, 2026 – July 31, 2027</h2>
+        <h2 style="margin:0">Credits remaining, August 1, 2025 – July 31, 2027</h2>
         <div class="spacer"></div>
         <div class="legend"><span><i style="background:var(--accent)"></i>Actual</span><span><i class="dashkey"></i>Projected at the term-to-date average</span></div>
       </div>
@@ -296,7 +296,7 @@
 
     <section class="card">
       <div class="toolbar">
-        <h2 style="margin:0">Credits used by service since August 1, 2026</h2>
+        <h2 style="margin:0">Credits used by service since August 1, 2025</h2>
         <div class="spacer"></div>
         <button class="secondary" id="oCsvBtn">Export (CSV)</button>
       </div>
@@ -326,7 +326,7 @@
       <footer style="margin-top:0">
         <b>Credits used</b> are read from ArcGIS Online's usage reporting, the same source as the Credits tab of your organization's status dashboard, and cover every service: storage, analysis, geocoding, notebooks and so on.
         The <b>balance</b> is the organization's available credits as ArcGIS Online reports it right now.
-        <b>Average per day</b> = credits used since August 1, 2026 ÷ days elapsed. The projection assumes that average continues; heavy one-time work (a large analysis or geocoding job) can make it look higher than your steady rate, so the last-30-days pace is shown for comparison.
+        <b>Average per day</b> = credits used since August 1, 2025 ÷ days elapsed. The projection assumes that average continues; heavy one-time work (a large analysis or geocoding job) can make it look higher than your steady rate, so the last-30-days pace is shown for comparison.
         Credits purchased or added during the term are included in the balance but not in the 50,000 starting amount.
       </footer>
     </section>
@@ -2059,7 +2059,7 @@
   });
 
   // ================= TAB: OVERVIEW =================
-  const TERM_START = Date.UTC(2026, 7, 1);                 // Aug 1, 2026
+  const TERM_START = Date.UTC(2025, 7, 1);                 // Aug 1, 2025 (credit reset)
   const TERM_END = Date.UTC(2027, 6, 31, 23, 59, 59);      // Jul 31, 2027
   const NEXT_START = Date.UTC(2027, 7, 1);                 // Aug 1, 2027
   const NEXT_DAYS = 366;                                   // Aug 1, 2027 – Jul 31, 2028 (includes Feb 29, 2028)
@@ -2180,9 +2180,9 @@
       const runOut30 = last30 > 0 ? now + bal / last30 * DAY : null;
 
       state.ov = { now, bal, used, startBal, rate, last30, storageRate, daysElapsed, daysLeft, endBal, runOut, endBal30, runOut30, byType, byDay, source, errors };
-      logEvent("SUMMARY", `Overview: balance ${fmtCred(bal)} · used since Aug 1, 2026 ${fmtCred(used)} over ${daysElapsed.toFixed(1)} days (${fmtCred(rate)}/day; last 30 days ${last30 == null ? "n/a" : fmtCred(last30)}/day) · implied starting balance ${fmtCred(startBal)} · projected balance Jul 31, 2027 ${fmtCred(endBal)} · source ${source}`);
-      byType.forEach(r => logEvent("DETAIL", `Usage · ${r.label} [${r.codes.join(", ")}]: ${fmtCred(r.credits)} credits since Aug 1, 2026`));
-      oProgress(1, `Done. ${fmtC0(used)} credits used since August 1, 2026.`);
+      logEvent("SUMMARY", `Overview: balance ${fmtCred(bal)} · used since Aug 1, 2025 ${fmtCred(used)} over ${daysElapsed.toFixed(1)} days (${fmtCred(rate)}/day; last 30 days ${last30 == null ? "n/a" : fmtCred(last30)}/day) · implied starting balance ${fmtCred(startBal)} · projected balance Jul 31, 2027 ${fmtCred(endBal)} · source ${source}`);
+      byType.forEach(r => logEvent("DETAIL", `Usage · ${r.label} [${r.codes.join(", ")}]: ${fmtCred(r.credits)} credits since Aug 1, 2025`));
+      oProgress(1, `Done. ${fmtC0(used)} credits used since August 1, 2025.`);
       renderOverview();
     } catch (e) {
       logEvent("ERROR", "Overview stopped: " + e.message);
@@ -2228,7 +2228,7 @@
 
     $("#oTiles").innerHTML = [
       ["Available credits", fmtC0(o.bal), "current balance"],
-      ["Used since Aug 1, 2026", fmtC0(o.used), `over ${fmtC0(o.daysElapsed)} days · started at ~${fmtC0(o.startBal)}`],
+      ["Used since Aug 1, 2025", fmtC0(o.used), `over ${fmtC0(o.daysElapsed)} days · started at ~${fmtC0(o.startBal)}`],
       ["Average use per day", fmtCred(o.rate), `about ${fmtC0(o.rate * 30.44)} a month · all services`],
       ["Last 30 days, per day", o.last30 == null ? "n/a" : fmtCred(o.last30), o.last30 == null ? "usage not available" : `about ${fmtC0(o.last30 * 30.44)} a month`],
       ["Projected on Jul 31, 2027", (o.endBal < 0 ? "−" : "") + fmtC0(Math.abs(o.endBal)), o.endBal < 0 ? "shortfall at the current average" : "left over at the current average"]
@@ -2267,13 +2267,14 @@
     // ticks
     const yt = [0, .25, .5, .75, 1].map(f => f * ymax);
     const months = [];
-    for (let i = 0; i < 12; i++) months.push(Date.UTC(2026, 7 + i, 1));
-    const mlabel = (t) => { const d = new Date(t); return d.toLocaleDateString(undefined, { month: "short", timeZone: "UTC" }) + ((d.getUTCMonth() === 7 || d.getUTCMonth() === 0) ? " " + d.getUTCFullYear() : ""); };
+    for (let t = TERM_START, i = 0; t <= x1; i++, t = Date.UTC(2025, 7 + i, 1)) months.push(t);
+    let lastYear = null;   // show the year on the first labeled month of each year
+    const mlabel = (t) => { const d = new Date(t), y = d.getUTCFullYear(); const withYear = y !== lastYear; lastYear = y; return d.toLocaleDateString(undefined, { month: "short", timeZone: "UTC" }) + (withYear ? " " + y : ""); };
     const svg = `
-      <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Credits remaining from August 1, 2026 to July 31, 2027">
+      <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Credits remaining from August 1, 2025 to July 31, 2027">
         ${yt.map(v => `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="${v === 0 ? "base" : "grid"}"/>
           <text x="${m.l - 8}" y="${Y(v) + 4}" class="ylab">${fmtC0(v)}</text>`).join("")}
-        ${months.map(t => `<line x1="${X(t)}" x2="${X(t)}" y1="${H - m.b}" y2="${H - m.b + 4}" class="tick"/><text x="${X(t) + 3}" y="${H - m.b + 17}" class="xlab">${mlabel(t)}</text>`).join("")}
+        ${months.map((t, i) => `<line x1="${X(t)}" x2="${X(t)}" y1="${H - m.b}" y2="${H - m.b + 4}" class="tick"/>${(months.length <= 14 || i % 2 === 0) ? `<text x="${X(t) + 3}" y="${H - m.b + 17}" class="xlab">${mlabel(t)}</text>` : ""}`).join("")}
         <line x1="${X(o.now)}" x2="${X(o.now)}" y1="${m.t}" y2="${H - m.b}" class="today"/>
         <text x="${X(o.now) + 5}" y="${m.t + 11}" class="note">Today</text>
         <path d="${path(actual)}" class="actual"/>
@@ -2315,7 +2316,7 @@
 
   function renderUsageTable() {
     const o = state.ov;
-    $("#oThead").innerHTML = `<tr><th>Service</th><th class="num">Credits since Aug 1, 2026</th><th class="num">Share</th><th class="num">Per day</th><th class="num">Last 30 days</th><th class="num">At this rate for 12 months</th></tr>`;
+    $("#oThead").innerHTML = `<tr><th>Service</th><th class="num">Credits since Aug 1, 2025</th><th class="num">Share</th><th class="num">Per day</th><th class="num">Last 30 days</th><th class="num">At this rate for 12 months</th></tr>`;
     if (!o.byType.length) {
       $("#oTbody").innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:16px">A breakdown by service isn't available.</td></tr>`;
       return;
@@ -2388,7 +2389,7 @@
   function oCsv() {
     const o = state.ov; if (!o) return;
     const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    const lines = [["Service", "Usage codes", "Storage", "Credits since Aug 1 2026", "Share %", "Per day", "Last 30 days", "At this rate for 12 months"].join(",")];
+    const lines = [["Service", "Usage codes", "Storage", "Credits since Aug 1 2025", "Share %", "Per day", "Last 30 days", "At this rate for 12 months"].join(",")];
     for (const r of o.byType) lines.push([r.label, r.codes.join("; "), r.storage ? "yes" : "no", r.credits.toFixed(2), (100 * r.credits / Math.max(1e-9, o.used)).toFixed(2),
       (r.credits / o.daysElapsed).toFixed(2), r.last30.toFixed(2), (r.credits / o.daysElapsed * 365).toFixed(0)].map(q).join(","));
     lines.push(["All services", "", "", o.used.toFixed(2), "100", o.rate.toFixed(2), "", (o.rate * 365).toFixed(0)].map(q).join(","));
