@@ -205,14 +205,14 @@
   <div id="appArea" class="hidden">
   <div class="orgstrip"><div id="orgLine" class="hint"></div><div id="roleWarn"></div></div>
   <nav class="apptabs" role="tablist">
-    <button class="active" data-apptab="inactive" role="tab">Inactive users</button>
+    <button class="active" data-apptab="suspects" role="tab">Large, underused items</button>
+    <button data-apptab="inactive" role="tab">Inactive users</button>
     <button data-apptab="stories" role="tab">Top StoryMaps</button>
     <button data-apptab="users" role="tab">Storage by user</button>
-    <button data-apptab="suspects" role="tab">Top suspects</button>
   </nav>
 
   <!-- ================= TAB: INACTIVE USERS ================= -->
-  <div class="tabpanel" id="tab-inactive">
+  <div class="tabpanel hidden" id="tab-inactive">
   <section class="card">
     <h2>Inactive users</h2>
     <p style="margin:0 0 6px">Members who haven't signed in to ArcGIS Online for more than a year, plus members created more than a year ago who have never signed in, with an estimate of the storage credits their content will cost over the next 12 months.</p>
@@ -370,15 +370,15 @@
   </section>
   </div>
 
-  <!-- ================= TAB 3: TOP SUSPECTS ================= -->
-  <div class="tabpanel hidden" id="tab-suspects">
+  <!-- ================= TAB: LARGE, UNDERUSED ITEMS (first tab) ================= -->
+  <div class="tabpanel" id="tab-suspects">
   <section class="card">
-    <h2>Top suspects</h2>
+    <h2>Large, underused items</h2>
     <p style="margin:0 0 8px">This tab shows the top 25 feature data services that may make the most sense to remove. Remember, this service may still be in use by another map or service.</p>
     <p class="hint" style="margin:0 0 4px">Looks at every hosted feature layer in the organization (views and location sharing layers excluded), takes the 100 largest, and ranks them by
       <b>estimated credits per year for each view in the last 12 months</b>. Large layers that are rarely used rise to the top.</p>
     <div style="margin-top:14px;display:flex;gap:10px">
-      <button id="sScanBtn">Find top suspects</button>
+      <button id="sScanBtn">Find large, underused items</button>
       <button class="secondary hidden" id="sCancelBtn">Cancel</button>
     </div>
     <div class="progress"><div id="sBar"></div></div>
@@ -1532,7 +1532,7 @@
     download(`storage-credits-by-user-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
 
-  // ================= TAB 3: TOP SUSPECTS =================
+  // ================= TAB: LARGE, UNDERUSED ITEMS =================
   const SUSPECT_COUNT = 25, SUSPECT_POOL = 100;
   function sProgress(frac, text) {
     $("#sBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
@@ -1563,7 +1563,7 @@
     state.cancel = false;
     $("#sCancelBtn").classList.remove("hidden");
     const errors = [];
-    logEvent("INFO", "=== Top suspects scan started ===");
+    logEvent("INFO", "=== Large, underused items scan started ===");
     try {
       const orgId = state.self.id;
 
@@ -1624,18 +1624,18 @@
       const ranked = pool100.slice().sort((a, b) => b.perView - a.perView).slice(0, SUSPECT_COUNT);
       ranked.forEach((it, i) => {
         it.rank = i + 1;
-        logEvent("DETAIL", `Suspect #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · numViews ${it.numViews ?? "n/a"}`);
+        logEvent("DETAIL", `Large, underused #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · numViews ${it.numViews ?? "n/a"}`);
       });
       state.suspects = ranked;
       state.sAll = pool100;
       state.sLayerCount = layers.length;
       state.sErrors = errors;
       state.sSortKey = "rank"; state.sSortDir = 1;
-      logEvent("SUMMARY", `Top suspects: ${layers.length} hosted feature layers · ${pool100.length} largest checked · top ${ranked.length} cost ${fmtCred(ranked.reduce((a, it) => a + it.credits, 0))} credits/yr · usage unavailable for ${usageFails}`);
+      logEvent("SUMMARY", `Large, underused items: ${layers.length} hosted feature layers · ${pool100.length} largest checked · top ${ranked.length} cost ${fmtCred(ranked.reduce((a, it) => a + it.credits, 0))} credits/yr · usage unavailable for ${usageFails}`);
       sProgress(1, `Done. Checked the ${fmtInt(pool100.length)} largest of ${fmtInt(layers.length)} hosted feature layers.`);
       renderSuspects();
     } catch (e) {
-      logEvent("ERROR", "Top suspects scan stopped: " + e.message);
+      logEvent("ERROR", "Large, underused items scan stopped: " + e.message);
       if (e.auth) {
         sProgress(0, "");
         showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
@@ -1668,8 +1668,8 @@
     $("#sResultsWrap").classList.remove("hidden");
     $("#sTiles").innerHTML = [
       ["Top 25 cost", fmtCred(cr), `credits / yr · ${fmtSize(bytes)}`],
-      ["No views in 12 months", fmtInt(idle), `of ${rows.length} suspects`],
-      ["No views in 30 days", fmtInt(quiet), `of ${rows.length} suspects`],
+      ["No views in 12 months", fmtInt(idle), `of the top ${rows.length} items`],
+      ["No views in 30 days", fmtInt(quiet), `of the top ${rows.length} items`],
       ["Layers checked", fmtInt((state.sAll || []).length), `largest of ${fmtInt(state.sLayerCount || 0)} hosted feature layers`]
     ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
     renderSuspectTable();
@@ -1719,7 +1719,7 @@
       lines.push([it.rank, it.title, it.owner, it.access, it.protected ? "yes" : "no", (it.size / MB).toFixed(2), ((it.attach || 0) / MB).toFixed(2), (it.featBytes / MB).toFixed(2),
         it.credits.toFixed(2), it.v12 ?? "n/a", it.v30 ?? "n/a", it.numViews ?? "n/a", it.perView.toFixed(2), isoDate(it.modified), itemUrl(it.id), it.id].map(q).join(","));
     }
-    download(`top-suspects-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
+    download(`large-underused-items-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
 
   // ================= TAB: INACTIVE USERS =================
@@ -1732,7 +1732,8 @@
     const s = state.self;
     return s && !s.isPortal && s.urlKey && s.customBaseUrl ? `https://${s.urlKey}.${s.customBaseUrl}` : state.portal;
   }
-  const profileUrl = (username) => `${orgHome()}/home/user.html?user=${encodeURIComponent(username)}`;
+  // The member's row on the organization's Members page (searched by username).
+  const memberUrl = (username) => `${orgHome()}/home/organization.html?sortField=lastlogin&sortOrder=desc&searchTerm=${encodeURIComponent(username)}#members`;
   const USER_TYPES = {
     viewerUT: "Viewer", contributorUT: "Contributor", editorUT: "Contributor", mobileWorkerUT: "Mobile Worker",
     fieldWorkerUT: "Field Worker", creatorUT: "Creator", GISProfessionalBasicUT: "GIS Professional Basic",
@@ -1894,7 +1895,7 @@
       const bar = `<div class="sizebar">${CATS.map(c => `<span class="${c.cls}" style="width:${(100 * u[c.key + "Cr"] / maxCr).toFixed(2)}%"></span>`).join("")}</div>`;
       const parts = CATS.filter(c => u[c.key + "Cr"] > 0).map(c => `${c.label} ${fmtCred(u[c.key + "Cr"])}`).join(" · ");
       return `<tr>
-        <td class="title"><a href="${esc(profileUrl(u.username))}" target="_blank" rel="noopener">${esc(u.fullName || u.username)}</a>
+        <td class="title"><a href="${esc(memberUrl(u.username))}" target="_blank" rel="noopener">${esc(u.fullName || u.username)}</a>
           <div class="meta">${esc(u.username)}${u.disabled ? ' <span class="pill err">disabled</span>' : ""}</div></td>
         <td>${esc(u.userType)}</td>
         <td>${esc(u.roleLabel)}</td>
@@ -1903,7 +1904,7 @@
         <td class="num">${fmtInt(u.items)}</td>
         <td class="num">${fmtMB(u.totalBytes)}</td>
         <td class="num" style="font-weight:700" title="${esc(parts)}">${fmtCred(u.totalCredits)}${u.totalCredits > 0 ? bar : ""}</td>
-        <td><a class="small" href="${esc(profileUrl(u.username))}" target="_blank" rel="noopener">Profile</a></td>
+        <td><a class="small" href="${esc(memberUrl(u.username))}" target="_blank" rel="noopener">Member page</a></td>
       </tr>`;
     }).join("") || `<tr><td colspan="${I_COLS.length}" style="color:var(--muted);padding:18px">No members have been inactive for over a year.</td></tr>`;
   }
@@ -1919,13 +1920,13 @@
   $("#iCsvBtn").addEventListener("click", () => {
     const head = ["Username", "Full name", "User type", "Role", "Disabled", "Last sign-in", "Member since", "Items",
       "Storage now (MB)", "Feature storage credits, next 12 months", "Imagery storage credits, next 12 months", "File storage credits, next 12 months", "Unclassified credits, next 12 months",
-      "Total storage credits, next 12 months", "Profile URL"];
+      "Total storage credits, next 12 months", "Member page URL"];
     const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const lines = [head.join(",")];
     for (const u of inactiveRows()) {
       lines.push([u.username, u.fullName, u.userType, u.roleLabel, u.disabled ? "yes" : "no", u.lastLogin ? isoDate(u.lastLogin) : "never", isoDate(u.created), u.items,
         (u.totalBytes / MB).toFixed(2), u.featureCr.toFixed(2), u.imageryCr.toFixed(2), u.fileCr.toFixed(2), u.otherCr.toFixed(2),
-        u.totalCredits.toFixed(2), profileUrl(u.username)].map(q).join(","));
+        u.totalCredits.toFixed(2), memberUrl(u.username)].map(q).join(","));
     }
     download(`inactive-users-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
