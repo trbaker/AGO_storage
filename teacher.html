@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArcGIS Online Storage Cleanup - For Teachers v. 0.1</title>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-HZWNB3WHS6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-HZWNB3WHS6');
+</script>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#fff; --ink:#1d2329; --muted:#5d6874; --line:#dfe3e8;
+    --accent:#0b6fbf; --accent-ink:#fff; --accent-soft:#e6f1fa; --warn:#a15c00; --warn-soft:#fff4e0;
+    --err:#b3261e; --err-soft:#fdecea; --ok:#2e7d32; --bar:#0b6fbf; --bar2:#8fb9dd;
+    --radius:10px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#15202b;color:#fff;padding:18px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.2px}
+  header h1 .ver{font-size:12px;font-weight:600;color:#aab6c2;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:2px 8px;margin-left:8px;vertical-align:3px;letter-spacing:.3px}
+  header .sub{color:#aab6c2;font-size:13px}
+  header .spacer{flex:1}
+  header .who{font-size:13px;color:#d6dde4}
+  main{max-width:1320px;margin:0 auto;padding:22px 24px 60px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:18px}
+  .card h2{font-size:16px;margin:0 0 12px}
+  label{display:block;font-weight:600;font-size:12.5px;color:var(--muted);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.4px}
+  input[type=text],input[type=password],input[type=number],input[type=url],textarea{
+    width:100%;padding:8px 10px;border:1px solid #c8cfd6;border-radius:7px;font:inherit;background:#fff}
+  textarea{font-family:var(--mono);font-size:12px;min-height:70px}
+  input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+  .row > *{flex:1;min-width:200px}
+  button{font:inherit;font-weight:600;border-radius:7px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:8px 16px;cursor:pointer}
+  button.secondary{background:#fff;color:var(--accent)}
+  button.ghost{background:transparent;border-color:transparent;color:#d6dde4;padding:6px 10px}
+  button.ghost:hover{color:#fff;text-decoration:underline}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:6px 0 10px}
+  .tabs button{background:transparent;color:var(--muted);border:none;border-bottom:2px solid transparent;border-radius:0;padding:8px 12px;font-weight:600}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .pane{display:none}.pane.active{display:block}
+  .hint{color:var(--muted);font-size:12.5px;margin:6px 0 0}
+  code,.mono{font-family:var(--mono);font-size:12px}
+  .copyline{display:flex;gap:8px;align-items:center;background:#f6f8fa;border:1px solid var(--line);border-radius:7px;padding:6px 8px;margin-top:6px}
+  .copyline code{flex:1;overflow:auto;white-space:nowrap}
+  .copyline button{padding:3px 10px;font-size:12px}
+  details{margin-top:12px}
+  details summary{cursor:pointer;color:var(--accent);font-weight:600}
+  details ol{margin:8px 0 0 0;padding-left:20px;color:var(--muted)}
+  .msg{padding:10px 12px;border-radius:7px;margin-top:12px;font-size:13px}
+  .msg.err{background:var(--err-soft);color:var(--err)}
+  .msg.warn{background:var(--warn-soft);color:var(--warn)}
+  .msg.info{background:var(--accent-soft);color:#08497d}
+  .checks{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .checks label{display:flex;gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);font-size:14px;margin:0}
+  .checks input{margin-top:3px}
+  .progress{height:8px;background:#e8ecf0;border-radius:99px;overflow:hidden;margin-top:14px}
+  .progress > div{height:100%;width:0;background:var(--accent);transition:width .2s}
+  .status{margin-top:8px;color:var(--muted);font-size:13px;min-height:1.4em}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .tile .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .tile .v{font-size:24px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+  .tile .s{font-size:12px;color:var(--muted)}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar input{max-width:240px}
+  .toolbar .spacer{flex:1}
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:8px}
+  table{border-collapse:collapse;width:100%;min-width:1100px;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#f6f8fa;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
+  th.num,td.num{text-align:right}
+  th .arrow{opacity:.5;font-size:10px;margin-left:3px}
+  tbody tr:hover{background:#fafcfe}
+  td.rank{color:var(--muted);width:34px}
+  td.title{min-width:200px}
+  td.title a{color:var(--accent);font-weight:600;text-decoration:none}
+  td.title a:hover{text-decoration:underline}
+  td.title .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:#eef1f4;color:#46515c;margin-right:4px}
+  .pill.public{background:#e7f4ea;color:var(--ok)}
+  .pill.err{background:var(--err-soft);color:var(--err)}
+  td.total{font-weight:700;min-width:120px}
+  .sizebar{height:6px;background:#eef1f4;border-radius:99px;margin-top:5px;display:flex;overflow:hidden}
+  .sizebar span{display:block;height:100%}
+  .sizebar .m{background:var(--bar)} .sizebar .d{background:var(--bar2)} .sizebar .r{background:#d08a1d}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);align-items:center}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+  td a.small{font-size:12px;color:var(--accent);white-space:nowrap}
+  .errors{font-size:12.5px;margin-top:10px}
+  .errors li{margin:2px 0}
+  .hidden{display:none !important}
+  footer{color:var(--muted);font-size:12px;margin-top:18px}
+  /* Folder-style tabs: the active tab joins its panel; each panel is a framed section */
+  :root{--tab-frame:#c9d2dc; --tab-panel:#e8edf3; --tab-idle:#f7f9fb}
+  .apptabs{display:flex;gap:6px;margin:0;padding:0 2px;position:relative;z-index:1;flex-wrap:wrap}
+  .apptabs button{background:var(--tab-idle);border:1px solid var(--tab-frame);border-bottom:none;border-radius:10px 10px 0 0;
+    color:var(--muted);padding:10px 20px 11px;font-size:15px;font-weight:600;margin-bottom:-1px;position:relative;
+    box-shadow:inset 0 -1px 0 var(--tab-frame)}
+  .apptabs button:hover{background:#fff;color:var(--ink)}
+  .apptabs button.active{background:var(--tab-panel);color:var(--ink);box-shadow:inset 0 3px 0 var(--accent);padding-bottom:12px}
+  .apptabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+  .tabpanel{background:var(--tab-panel);border:1px solid var(--tab-frame);border-radius:0 12px 12px 12px;padding:16px 14px 2px;margin-bottom:18px}
+  .tabpanel > .card, .tabpanel > section > .card, .tabpanel .tiles{box-shadow:0 1px 2px rgba(20,32,45,.05)}
+  .orgstrip{margin:0 0 12px}
+  .orgstrip .hint{margin:0}
+  .c-story{background:#0b6fbf} .c-file{background:#0b6fbf} .c-feat{background:#d0661d} .c-img{background:#3f8f5a} .c-other{background:#8a8f98}
+  .ratechips{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .ratechip{border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;background:#fafbfc}
+  .ratechip b{display:block;font-size:13px}
+  .ratechip i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+  #uTable{min-width:1040px;font-size:13px}
+  #sTable{min-width:960px;font-size:13px}
+  #iTable{min-width:1000px;font-size:13px}
+  .verdict{display:flex;gap:14px;align-items:flex-start;border-radius:10px;padding:14px 16px;margin-bottom:16px;border:1px solid}
+  .verdict .vicon{flex:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px}
+  .verdict .vlabel{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .verdict .vtitle{font-size:16px;font-weight:650;margin:2px 0 4px;color:var(--ink)}
+  .verdict .vdetail{font-size:13px;color:#3b4652}
+  .verdict.good{background:#eaf5ec;border-color:#b9dcc0} .verdict.good .vicon{background:#2e7d32} .verdict.good .vlabel{color:#2e7d32}
+  .verdict.warn{background:#fff4e0;border-color:#f1d29c} .verdict.warn .vicon{background:#a15c00} .verdict.warn .vlabel{color:#a15c00}
+  .verdict.bad{background:#fdecea;border-color:#f3c2bd} .verdict.bad .vicon{background:#b3261e} .verdict.bad .vlabel{color:#b3261e}
+  .ochart{position:relative;margin-top:6px;overflow:hidden}
+  .ochart svg{display:block;font-family:inherit}
+  .ochart .grid{stroke:#e8ecf0;stroke-width:1}
+  .ochart .base{stroke:#9aa5b1;stroke-width:1}
+  .ochart .tick{stroke:#9aa5b1}
+  .ochart .ylab{font-size:11px;fill:var(--muted);text-anchor:end}
+  .ochart .xlab{font-size:11px;fill:var(--muted)}
+  .ochart .today{stroke:#5d6874;stroke-width:1;stroke-dasharray:2 3}
+  .ochart .note{font-size:11.5px;fill:#3b4652;font-weight:600}
+  .ochart .note.end{text-anchor:end}
+  .ochart .note.bad{fill:#b3261e}
+  .ochart .actual{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+  .ochart .proj{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:6 5}
+  .ochart .proj.bad{stroke:#b3261e}
+  .ochart .dot{fill:var(--accent);stroke:#fff;stroke-width:2}
+  .ochart .dot.bad{fill:#b3261e}
+  .ochart .dot.hollow{fill:#fff;stroke:var(--accent);stroke-width:2}
+  .ochart .xhair{stroke:#5d6874;stroke-width:1}
+  .ochart .xdot{fill:var(--accent);stroke:#fff;stroke-width:2}
+  .ochart .hidden{display:none}
+  .ctip{position:absolute;background:#15202b;color:#fff;font-size:12px;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:nowrap;line-height:1.4}
+  .legend i.dashkey{width:18px;height:0;border-top:2px dashed var(--accent);border-radius:0;vertical-align:3px}
+  #oTable{min-width:760px;font-size:13px}
+  #oTable .totalrow td{background:#f6f8fa;border-top:2px solid var(--line)}
+  .seg{display:inline-flex;border:1px solid #c8cfd6;border-radius:8px;overflow:hidden;background:#fff}
+  .seg button{background:#fff;color:var(--ink);border:none;border-right:1px solid #c8cfd6;border-radius:0;padding:7px 14px;font-weight:600}
+  .seg button:last-child{border-right:none}
+  .seg button.active{background:var(--accent);color:#fff}
+  .seg button:hover:not(.active){background:var(--accent-soft)}
+  .mbars{display:flex;flex-direction:column;gap:8px;margin:4px 0 2px}
+  .mrow{display:grid;grid-template-columns:190px 1fr 90px;gap:12px;align-items:center;font-size:13px}
+  .mrow .mlab{color:#3b4652}
+  .mrow .mtrack{height:14px;background:#eef1f4;border-radius:4px;overflow:hidden}
+  .mrow .mtrack span{display:block;height:100%;border-radius:0 4px 4px 0}
+  .mrow .mval{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+  .mtable{min-width:640px;font-size:13px}
+  .mtable tr.sel td{background:var(--accent-soft)}
+  .mtable td.neg{color:#b3261e;font-weight:600} .mtable td.pos{color:#2e7d32;font-weight:600}
+  #iTable th,#iTable td{padding:8px 9px}
+  #iTable td.title{min-width:200px}
+  #iTable th .when{font-weight:500;text-transform:none;font-size:11px;letter-spacing:0}
+  #iTable .meta{font-size:12px;color:var(--muted)}
+  #sTable th,#sTable td{padding:8px 7px}
+  #sTable th{white-space:normal;vertical-align:bottom;line-height:1.25}
+  #sTable td.title{min-width:220px}
+  #sTable .meta .pill{margin-left:4px}
+  .dashbar{display:flex;height:34px;border-radius:6px;overflow:hidden;background:#eef1f4;border:1px solid var(--line)}
+  .dashbar span{display:block;height:100%}
+  .dashlegend{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:12px;align-items:flex-start}
+  .dashlegend > div{display:flex;gap:7px;align-items:flex-start;font-size:13.5px}
+  .dashlegend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-top:4px;flex:none}
+  .dashlegend small{display:block;color:var(--muted);font-size:11.5px}
+  .dashlegend .dashtotal{border-left:1px solid var(--line);padding-left:16px;font-size:13.5px}
+  #uTable th,#uTable td{padding:7px 7px}
+  #uTable th.sub{letter-spacing:0;white-space:nowrap;line-height:1.3;vertical-align:bottom}
+  #uTable th.sub .when{font-weight:500;text-transform:none;font-size:11px;letter-spacing:0}
+  #uTable th.grp{text-align:center;cursor:default;border-left:1px solid var(--line)}
+  #uTable th.sub{font-size:11px}
+  #uTable .sep{border-left:1px solid var(--line)}
+  #uTable td.user{min-width:140px}
+  #uTable td.user .meta{font-size:12px;color:var(--muted)}
+  #uTable td.num .meta{font-size:11px;color:var(--muted);font-weight:400;white-space:normal;max-width:190px;margin-left:auto;line-height:1.35}
+  #uTable td.tot{font-weight:700}
+  .tile .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+  #logPre{background:#0f1720;color:#d6e2ee;font:12px/1.5 var(--mono);padding:12px 14px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0}
+  .unc-link{color:var(--accent);font-weight:600;text-decoration:none;border-bottom:1px dashed var(--accent)}
+  .unc-link:hover{border-bottom-style:solid}
+  .unc-i{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:800;margin-left:5px;vertical-align:1px}
+  #infoDlg{border:none;border-radius:12px;padding:0;width:min(860px,94vw);max-height:88vh;box-shadow:0 20px 60px rgba(10,20,30,.35);color:var(--ink)}
+  #infoDlg::backdrop{background:rgba(15,23,32,.45)}
+  #infoDlg .dlg-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+  #infoDlg h3{margin:0;font-size:17px;flex:1}
+  #infoDlg .dlg-x{background:transparent;border:none;color:var(--muted);font-size:24px;line-height:1;padding:2px 8px}
+  #infoDlg .dlg-x:hover{color:var(--ink)}
+  #infoDlg .dlg-body{padding:16px 20px 20px;overflow:auto;max-height:calc(88vh - 60px);font-size:14px}
+  #infoDlg h4{margin:18px 0 8px;font-size:14px}
+  #infoDlg p{margin:0 0 10px}
+  #infoDlg ul{margin:0 0 10px;padding-left:20px} #infoDlg li{margin:3px 0}
+  .calc{border:1px solid var(--line);border-radius:8px;overflow:hidden;font-variant-numeric:tabular-nums}
+  .calc > div{display:grid;grid-template-columns:28px 1fr 130px;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+  .calc > div:last-child{border-bottom:none}
+  .calc .op{color:var(--muted);font-weight:700;text-align:center}
+  .calc .amt{text-align:right}
+  .calc .res{background:#f1f3f6;font-weight:700}
+  .calc .sub{color:var(--muted);font-size:12.5px;display:block}
+  .dlg-items{width:100%;border-collapse:collapse;font-size:12.5px;min-width:0}
+  .dlg-items th,.dlg-items td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+  .dlg-items th{position:static;background:#f6f8fa;cursor:default}
+  .dlg-items td.num,.dlg-items th.num{text-align:right}
+  button.danger{background:#b3261e;border-color:#b3261e;color:#fff}
+  button.danger:hover:not(:disabled){background:#8f1d17}
+  .rb-reco{display:flex;gap:12px;align-items:flex-start;background:var(--accent-soft);border:1px solid #b9d5ee;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+  .rb-reco-icon{flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif}
+  .rb-toggle-row{display:flex;gap:14px;align-items:center}
+  .switch{position:relative;display:inline-block;width:52px;height:30px;flex:none;margin:0}
+  .switch input{opacity:0;width:0;height:0}
+  .switch .slider{position:absolute;inset:0;background:#c3cad2;border-radius:99px;cursor:pointer;transition:background .15s}
+  .switch .slider::before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider::before{transform:translateX(22px)}
+  .switch input:focus-visible + .slider{outline:2px solid var(--accent);outline-offset:2px}
+  .switch input:disabled + .slider{opacity:.5;cursor:not-allowed}
+  .pill.rb-on{background:#e6f1fa;color:#08497d;font-weight:700}
+  .pill.rb-off{background:#eef1f4;color:#46515c;font-weight:700}
+  .ackline{display:flex;gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);font-size:14px;margin:12px 0 0}
+  .ackline input{margin-top:3px}
+  .dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  #rbTable{min-width:700px;font-size:13px}
+  footer.credit{text-align:left;margin-top:28px;font-size:13px}
+  footer.credit a{color:var(--accent);font-weight:600;text-decoration:none}
+  footer.credit a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>ArcGIS Online Storage Cleanup - For Teachers <span class="ver" id="appVersion">v. 0.1</span></h1>
+    <div class="sub">Credit use and storage cleanup for your school's ArcGIS Online organization</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="who hidden" id="whoBox"><span id="whoText"></span> <button class="ghost" id="signOutBtn">Sign out</button></div>
+</header>
+
+<main>
+  <!-- ============ SIGN IN ============ -->
+  <section class="card" id="signinCard">
+    <h2>1 · Sign in as an organization administrator</h2>
+    <label for="portalUrl">ArcGIS Online / Portal URL</label>
+    <input type="url" id="portalUrl" placeholder="https://www.arcgis.com  or  https://yourorg.maps.arcgis.com">
+    <p class="hint">Use <code>https://www.arcgis.com</code> or your school's ArcGIS Online address, for example <code>https://yourschool.maps.arcgis.com</code>.</p>
+
+    <div class="pane active" id="pane-pwd">
+      <div class="row">
+        <div><label for="username">Username</label><input type="text" id="username" autocomplete="username"></div>
+        <div><label for="password">Password</label><input type="password" id="password" autocomplete="current-password"></div>
+      </div>
+      <div style="margin-top:12px"><button id="pwdBtn">Sign in</button></div>
+      <p class="hint">Built-in ArcGIS accounts only (not SAML/MFA). The password goes only to your portal's <code>generateToken</code> endpoint and is never stored. The page must be served from a web origin (not <code>file://</code>).</p>
+    </div>
+
+    <div id="signinMsg"></div>
+  </section>
+
+  <div id="appArea" class="hidden">
+  <div class="orgstrip"><div id="orgLine" class="hint"></div><div id="roleWarn"></div></div>
+  <nav class="apptabs" role="tablist">
+    <button class="active" data-apptab="overview" role="tab">Overview</button>
+    <button data-apptab="recycle" role="tab">Recycle bin</button>
+    <button data-apptab="suspects" role="tab">Large, underused items</button>
+  </nav>
+
+  <!-- ================= TAB: OVERVIEW (first tab) ================= -->
+  <div class="tabpanel" id="tab-overview">
+  <section class="card">
+    <h2>Overview</h2>
+    <p style="margin:0 0 6px">Credit consumption across every service in your organization, and whether your credits will last until the current term ends on <b>July 31, 2027</b>.</p>
+    <p class="hint" style="margin:0">Most school organizations had their credits reset to 50,000 on August 1, 2025. The projection uses your actual balance and the credits used since then.</p>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button id="oScanBtn">Check credit consumption</button>
+      <button class="secondary hidden" id="oCancelBtn">Cancel</button>
+    </div>
+    <div class="progress"><div id="oBar"></div></div>
+    <div class="status" id="oStatus"></div>
+  </section>
+
+  <section class="hidden" id="oResultsWrap">
+    <div id="oVerdict"></div>
+    <div class="tiles" id="oTiles" style="margin-bottom:18px"></div>
+
+    <section class="card">
+      <div class="toolbar" style="margin-bottom:2px">
+        <h2 style="margin:0">Credits remaining, August 1, 2025 – July 31, 2027</h2>
+        <div class="spacer"></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Actual</span><span><i class="dashkey"></i>Projected at the term-to-date average</span></div>
+      </div>
+      <div id="oChart" class="ochart"></div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Credits used by service since August 1, 2025</h2>
+        <div class="spacer"></div>
+        <button class="secondary" id="oCsvBtn">Export (CSV)</button>
+      </div>
+      <div class="tablewrap">
+        <table id="oTable"><thead id="oThead"></thead><tbody id="oTbody"></tbody></table>
+      </div>
+      <div id="oErrorsBox"></div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-bottom:4px">Modeled credit consumption for school year 2027-2028</h2>
+      <p class="hint" style="margin:0 0 12px">School year 2027–2028 runs August 1, 2027 – July 31, 2028 (366 days). The model assumes the organization keeps using credits at its term-to-date average.</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-weight:600;font-size:13.5px">Anticipated credits for 2027–2028:</span>
+        <div class="seg" id="oAllot" role="radiogroup" aria-label="Anticipated credits">
+          <button data-v="1000" role="radio">1,000</button>
+          <button data-v="2500" role="radio">2,500</button>
+          <button data-v="5000" role="radio" class="active" aria-checked="true">5,000</button>
+          <button data-v="10000" role="radio">10,000</button>
+          <button data-v="25000" role="radio">25,000</button>
+        </div>
+      </div>
+      <div id="oModel"></div>
+    </section>
+
+    <section class="card">
+      <footer style="margin-top:0">
+        <b>Credits used</b> are read from ArcGIS Online's usage reporting, the same source as the Credits tab of your organization's status dashboard, and cover every service: storage, analysis, geocoding, notebooks and so on.
+        The <b>balance</b> is the organization's available credits as ArcGIS Online reports it right now.
+        <b>Average per day</b> = credits used since August 1, 2025 ÷ days elapsed. The projection assumes that average continues; heavy one-time work (a large analysis or geocoding job) can make it look higher than your steady rate, so the last-30-days pace is shown for comparison.
+        Credits purchased or added during the term are included in the balance but not in the 50,000 starting amount.
+      </footer>
+    </section>
+  </section>
+  </div>
+
+
+  <!-- ================= TAB: RECYCLE BIN ================= -->
+  <div class="tabpanel hidden" id="tab-recycle">
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:10px">
+      <h2 style="margin:0">Recycle bin</h2>
+      <span id="rbPill"></span>
+      <div class="spacer"></div>
+      <button class="secondary" id="rbRefreshBtn">Refresh status</button>
+    </div>
+    <div class="rb-reco">
+      <div class="rb-reco-icon" aria-hidden="true">i</div>
+      <div><b>We recommend turning off the recycle bin to save credits.</b>
+        <div class="hint" style="margin:3px 0 0">When the recycle bin is on, deleted items wait there for at least 14 days before they're removed for good, and they keep counting toward your storage the whole time.</div></div>
+    </div>
+    <div class="rb-toggle-row">
+      <label class="switch"><input type="checkbox" id="rbToggle" aria-describedby="rbToggleLabel"><span class="slider"></span></label>
+      <div><div id="rbToggleLabel" style="font-weight:600"></div><div class="hint" id="rbToggleHint" style="margin:2px 0 0"></div></div>
+    </div>
+    <div id="rbToggleMsg"></div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar" style="margin-bottom:4px">
+      <h2 style="margin:0">Items in the recycle bin</h2>
+      <div class="spacer"></div>
+      <span class="hint" id="rbScope" style="margin:0"></span>
+    </div>
+    <p class="hint" style="margin:0 0 10px">Check what's waiting in the recycle bin, then empty it to delete those items permanently and stop paying to store them.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button id="rbListBtn">Check recycle bin</button>
+      <button class="danger" id="rbEmptyBtn" disabled>Empty recycle bin now</button>
+    </div>
+    <div class="progress"><div id="rbBar"></div></div>
+    <div class="status" id="rbStatusLine"></div>
+    <div id="rbResult"></div>
+    <div class="tiles hidden" id="rbTiles" style="margin:6px 0 14px"></div>
+    <div class="tablewrap hidden" id="rbTableWrap">
+      <table id="rbTable">
+        <thead><tr><th>Item</th><th>Owner</th><th>Type</th><th class="num">Size (MB)</th><th class="num">Credits per month</th></tr></thead>
+        <tbody id="rbTbody"></tbody>
+      </table>
+    </div>
+    <footer>
+      <b>Credits per month</b> estimates what each item costs while it sits in the recycle bin: hosted feature layers at the feature storage rate (2.4 credits per 10 MB per month) and everything else at 1.2 credits per GB per month.
+      "Credits saved" after emptying assumes the items would otherwise have stayed in the recycle bin for one month. Emptying the bin deletes items permanently: they can't be restored.
+    </footer>
+  </section>
+  </div>
+
+  <!-- ================= TAB: LARGE, UNDERUSED ITEMS ================= -->
+  <div class="tabpanel hidden" id="tab-suspects">
+  <section class="card">
+    <h2>Large, underused items</h2>
+    <p style="margin:0 0 8px">This tab shows the top 25 feature data services that may make the most sense to remove. Remember, this service may still be in use by another map or service.</p>
+    <p class="hint" style="margin:0 0 4px">Looks at the hosted feature layers in scope (views and location sharing layers excluded), takes the 100 largest, and ranks them by
+      <b>estimated credits per year for each view in the last 12 months</b>. Large layers that are rarely used rise to the top.</p>
+    <p class="hint" style="margin:6px 0 0">Looking at: <b id="sScope"></b></p>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button id="sScanBtn">Find large, underused items</button>
+      <button class="secondary hidden" id="sCancelBtn">Cancel</button>
+    </div>
+    <div class="progress"><div id="sBar"></div></div>
+    <div class="status" id="sStatus"></div>
+  </section>
+
+  <section class="hidden" id="sResultsWrap">
+    <div class="tiles" id="sTiles" style="margin-bottom:18px"></div>
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Top 25 feature layers to review</h2>
+        <div class="spacer"></div>
+        <button class="secondary" id="sCsvBtn">Export (CSV)</button>
+      </div>
+      <div class="tablewrap">
+        <table id="sTable">
+          <thead id="sThead"></thead>
+          <tbody id="sTbody"></tbody>
+        </table>
+      </div>
+      <div id="sErrorsBox"></div>
+      <footer>
+        <b>Views (12 months)</b> and <b>Views (30 days)</b> are the usage counts from each item's Usage tab. For a hosted feature layer, ArcGIS counts usage as requests to the layer: one map view can make several requests.
+        They're read from ArcGIS Online's usage reporting; "n/a" means the count couldn't be read, and lifetime views are used for ranking instead.
+        <b>Lifetime views (numViews)</b> is the item's own numViews value, read directly from the item when the scan ran; opening the item page adds to it.
+        <b>Est. credits / yr</b> = feature data × 2.4 credits per 10 MB per month × 12, plus attachments at the file storage rate (1.2 credits per GB per month × 12). Attachments are measured and removed from the layer's reported size.
+        <b>Credits per view</b> = estimated credits per year ÷ (views in the last 12 months + 1).
+        Before deleting anything, check the item page's usage, the maps and apps that use it, and with its owner. Consider exporting a backup first. Delete-protected items are marked.
+      </footer>
+    </section>
+  </section>
+  </div>
+
+  </div>
+
+  <section class="card hidden" id="logCard">
+    <div class="toolbar" style="margin-bottom:6px">
+      <h2 style="margin:0">Troubleshooting log</h2>
+      <span class="hint" id="logCount" style="margin:0"></span>
+      <div class="spacer"></div>
+      <button class="secondary" id="logToggle">Show log</button>
+      <button class="secondary" id="logDl">Download log</button>
+      <button class="secondary" id="logClear">Clear</button>
+    </div>
+    <pre id="logPre" class="hidden"></pre>
+    <p class="hint">Records every request (never your token or password), what came back, and timing. It includes usernames and item IDs from your org, so share it only with people you trust.</p>
+  </section>
+
+  <dialog id="infoDlg" aria-labelledby="dlgTitle">
+    <div class="dlg-head"><h3 id="dlgTitle"></h3><button class="dlg-x" id="dlgClose" aria-label="Close">×</button></div>
+    <div class="dlg-body" id="dlgBody"></div>
+  </dialog>
+
+  <footer class="credit">Designed by <a href="https://tbaker.com" target="_blank" rel="noopener">Tom Baker</a></footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- helpers ----------
+  const $ = (s) => document.querySelector(s);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const MB = 1048576;
+  const fmtMB = (b) => (b / MB).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtGB = (b) => (b / (MB * 1024)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtInt = (n) => (n ?? 0).toLocaleString();
+  const fmtDate = (ms) => ms ? new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+  const isoDate = (ms) => ms ? new Date(ms).toISOString().slice(0, 10) : "";
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const GB = 1073741824;
+  const CREDITS_PER_GB_MONTH = 1.2;   // ArcGIS Online file storage rate (images, video, audio, PDFs, other files)
+  const creditRate = () => CREDITS_PER_GB_MONTH;
+  const yearCredits = (bytes) => bytes / GB * creditRate() * 12;
+  const fmtCred = (c) => c.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const MEDIA_ITEM_TYPES = new Set(["Image", "Video", "Audio", "PDF"]);
+  const NON_MEDIA_EXT = /\.(json|xml|txt)$/i;
+
+  const state = {
+    portal: null, token: null, expires: 0, self: null, user: null,
+    records: [], cancel: false, sortKey: "total", sortDir: -1, linked: false
+  };
+
+  function normPortal(u) {
+    u = (u || "").trim();
+    if (!u) u = "https://www.arcgis.com";
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    u = u.replace(/\/+$/, "").replace(/\/sharing(\/rest)?$/i, "").replace(/\/home(\/.*)?$/i, "");
+    return u.replace(/^http:\/\//i, "https://");
+  }
+  const rest = () => state.portal + "/sharing/rest";
+
+  function showMsg(el, kind, html) { el.innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : ""; }
+
+  // ---------- persisted settings ----------
+  try {
+    $("#portalUrl").value = localStorage.getItem("agoCleanup.portal") || "https://www.arcgis.com";
+  } catch (e) { $("#portalUrl").value = "https://www.arcgis.com"; }
+  function saveSettings() {
+    try {
+      localStorage.setItem("agoCleanup.portal", $("#portalUrl").value.trim());
+    } catch (e) {}
+  }
+
+  // ---------- REST ----------
+  class ApiError extends Error { constructor(msg, code) { super(msg); this.code = code; } }
+
+  // ---------- troubleshooting log ----------
+  const APP_VERSION = "2026-11-12.3";
+  const LOG = { entries: [], started: Date.now(), dropped: 0, reqs: 0, errs: 0 };
+  const LOG_MAX = 5000, LOG_KEEP_HEAD = 400;
+  let logRenderPending = false;
+  function logEvent(kind, msg) {
+    LOG.entries.push({ t: (Date.now() - LOG.started) / 1000, kind, msg });
+    if (LOG.entries.length > LOG_MAX) { LOG.entries.splice(LOG_KEEP_HEAD, 1); LOG.dropped++; }
+    if (!logRenderPending) { logRenderPending = true; requestAnimationFrame(renderLog); }
+  }
+  function cleanParams(params) {
+    const o = {};
+    for (const [k, v] of Object.entries(params || {})) {
+      if (v === undefined || v === null || k === "token" || k === "password" || k === "code_verifier" || k === "code") continue;
+      o[k] = String(v).length > 160 ? String(v).slice(0, 160) + "…" : v;
+    }
+    return Object.keys(o).length ? " " + JSON.stringify(o) : "";
+  }
+  function summarize(j) {
+    if (!j || typeof j !== "object") return "";
+    const sz = (arr) => arr.slice(0, 5).map(x => (x && "size" in x) ? x.size : "none").join(",");
+    const parts = [];
+    if (Array.isArray(j.results)) parts.push(`results=${j.results.length} total=${j.total} next=${j.nextStart} sizes[${sz(j.results)}]`);
+    if (Array.isArray(j.items)) parts.push(`items=${j.items.length} total=${j.total} next=${j.nextStart} folders=${(j.folders || []).length} sizes[${sz(j.items)}]`);
+    if (Array.isArray(j.users)) parts.push(`users=${j.users.length} total=${j.total} next=${j.nextStart} storageUsage[${j.users.slice(0, 5).map(u => u.storageUsage ?? "none").join(",")}]`);
+    if (Array.isArray(j.resources)) parts.push(`resources=${j.resources.length} total=${j.total} next=${j.nextStart}`);
+    if (j.id && j.type && "size" in j && !j.results) parts.push(`item type="${j.type}" size=${j.size}`);
+    if (j.user && "isPortal" in j) parts.push(`portal id=${j.id} isPortal=${j.isPortal} user=${j.user.username} role=${j.user.role} privileges=${(j.user.privileges || []).length}`);
+    if (j.token) parts.push("token received");
+    return parts.join(" ");
+  }
+
+  async function api(path, params = {}, { method = "POST", raw = false } = {}) {
+    const url = path.startsWith("http") ? path : rest() + path;
+    const shortPath = url.replace(state.portal || "", "").replace("/sharing/rest", "");
+    const p = new URLSearchParams();
+    if (!raw) p.set("f", "json");
+    for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null) p.set(k, v);
+    if (state.token) p.set("token", state.token);
+    const t0 = performance.now();
+    const tag = `${method} ${shortPath}${cleanParams(params)}`;
+    LOG.reqs++;
+    let res, lastErr;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        res = method === "GET" ? await fetch(url + "?" + p.toString(), { cache: "no-store" }) : await fetch(url, { method: "POST", body: p, cache: "no-store" });
+        if (res.status === 429 || res.status >= 500) {
+          lastErr = new ApiError("HTTP " + res.status, res.status);
+          logEvent("RETRY", `${tag} → HTTP ${res.status}, retry ${attempt + 1}`);
+          await sleep(700 * (attempt + 1) ** 2); continue;
+        }
+        lastErr = null; break;
+      } catch (e) {
+        lastErr = e;
+        logEvent("RETRY", `${tag} → network error: ${e.message}, retry ${attempt + 1}`);
+        await sleep(700 * (attempt + 1) ** 2);
+      }
+    }
+    const ms = Math.round(performance.now() - t0);
+    if (lastErr) { LOG.errs++; logEvent("ERROR", `${tag} → failed after retries: ${lastErr.message} (${ms} ms)`); throw lastErr; }
+    const text = await res.text();
+    if (raw) { logEvent("REQ", `${tag} → HTTP ${res.status}, ${text.length} chars (${ms} ms)`); return text; }
+    let j;
+    try { j = JSON.parse(text); } catch (e) {
+      LOG.errs++; logEvent("ERROR", `${tag} → HTTP ${res.status}, not JSON: ${text.slice(0, 120)} (${ms} ms)`);
+      throw new ApiError("Unexpected response (HTTP " + res.status + ")", res.status);
+    }
+    if (j && j.error) {
+      const code = j.error.code;
+      LOG.errs++;
+      logEvent("ERROR", `${tag} → error ${code}: ${j.error.message || ""} ${(j.error.details || []).join(" ")} (${ms} ms)`);
+      const err = new ApiError(j.error.message || ("Error " + code), code);
+      if (code === 498 || code === 499) err.auth = true;
+      throw err;
+    }
+    logEvent("REQ", `${tag} → HTTP ${res.status} ${summarize(j)} (${ms} ms)`);
+    return j;
+  }
+
+
+  // ---------- auth: username/password ----------
+  $("#pwdBtn").addEventListener("click", async () => {
+    const msg = $("#signinMsg");
+    const username = $("#username").value.trim(), password = $("#password").value;
+    if (!username || !password) return showMsg(msg, "err", "Enter a username and password.");
+    if (location.protocol === "file:") return showMsg(msg, "err", "Username/password tokens need a web origin. Serve this page over https or from <code>http://localhost</code>.");
+    saveSettings();
+    const portal = normPortal($("#portalUrl").value);
+    $("#pwdBtn").disabled = true;
+    try {
+      state.portal = portal; state.token = null;
+      const j = await api("/generateToken", { username, password, client: "referer", referer: location.origin, expiration: 240 });
+      $("#password").value = "";
+      await onToken(portal, j.token, j.expires);
+    } catch (e) {
+      const bad = /unable to generate token|invalid username or password/i.test(e.message) || e.code === 400;
+      showMsg(msg, "err", bad
+        ? "That username or password didn't work. Check them and try again. If your school signs in through Google, Microsoft or another single sign-on, this sign-in won't work; ask your ArcGIS administrator."
+        : "Sign-in failed: " + esc(e.message));
+    } finally { $("#pwdBtn").disabled = false; }
+  });
+
+  async function onToken(portal, token, expires) {
+    state.portal = portal; state.token = token; state.expires = expires || 0;
+    const self = await api("/portals/self");
+    if (!self.user) throw new Error("The token is not tied to a signed-in user.");
+    state.self = self; state.user = self.user;
+    logEvent("INFO", `Signed in to ${portal} · org "${self.name}" (${self.id}) · user ${self.user.username} · role ${self.user.role}${self.user.roleId ? " / roleId " + self.user.roleId : ""} · ${(self.user.privileges || []).length} privileges · isPortal=${!!self.isPortal}`);
+    try { sessionStorage.setItem("agoCleanup.session", JSON.stringify({ portal, token, expires: state.expires })); } catch (e) {}
+    showSignedIn();
+  }
+
+  function showSignedIn() {
+    const s = state.self, u = state.user;
+    $("#signinCard").classList.add("hidden");
+    $("#appArea").classList.remove("hidden");
+    $("#whoBox").classList.remove("hidden");
+    $("#whoText").textContent = `${u.fullName || u.username} (${u.username})`;
+    $("#orgLine").innerHTML = `Organization: <b>${esc(s.name || s.id)}</b> · ${esc(state.portal)}`;
+    const isAdmin = u.role === "org_admin" && (!u.roleId || (u.privileges || []).some(p => p.startsWith("portal:admin:")));
+    renderRecycleStatus();
+    showMsg($("#roleWarn"), "warn", isAdmin ? "" :
+      `You're signed in as <b>${esc(u.role || "non-admin")}</b>. The Overview reads your organization's credit balance and credit usage, which ArcGIS Online only shares with administrators, so it may not load with this account.`);
+  }
+
+  $("#signOutBtn").addEventListener("click", () => {
+    try { sessionStorage.removeItem("agoCleanup.session"); } catch (e) {}
+    state.cancel = true;
+    state.token = null; state.self = null; state.user = null; state.ov = null;
+    $("#whoBox").classList.add("hidden");
+    $("#appArea").classList.add("hidden");
+    $("#oResultsWrap").classList.add("hidden");
+    oProgress(0, "");
+    state.suspects = []; state.attachById = null; $("#sResultsWrap").classList.add("hidden"); sProgress(0, "");
+    state.rb = null; rbProgress(0, ""); showMsg($("#rbResult"), "", ""); showMsg($("#rbToggleMsg"), "", "");
+    $("#rbTiles").classList.add("hidden"); $("#rbTableWrap").classList.add("hidden"); $("#rbEmptyBtn").disabled = true;
+    $("#signinCard").classList.remove("hidden");
+    showMsg($("#signinMsg"), "info", "Signed out.");
+  });
+
+  // ---------- busy state ----------
+  function setBusy(on) {
+    state.busy = on;
+    $("#oScanBtn").disabled = on;
+    $("#rbListBtn").disabled = on;
+    $("#rbRefreshBtn").disabled = on;
+    $("#rbEmptyBtn").disabled = on || !(state.rb && state.rb.length);
+    $("#sScanBtn").disabled = on;
+    if (state.self) renderRecycleStatus();
+  }
+  const DAY = 86400000;
+
+  // ---------- downloads ----------
+  function download(name, text) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  const stamp = () => new Date().toISOString().slice(0, 10);
+
+  // ================= LOG UI =================
+  const logLine = (e) => `[${e.t.toFixed(2).padStart(8)}s] ${e.kind.padEnd(7)} ${e.msg}`;
+  function renderLog() {
+    logRenderPending = false;
+    if (!LOG.entries.length) { $("#logCard").classList.add("hidden"); return; }
+    $("#logCard").classList.remove("hidden");
+    $("#logCount").textContent = `${fmtInt(LOG.reqs)} request${LOG.reqs === 1 ? "" : "s"} · ${fmtInt(LOG.errs)} error${LOG.errs === 1 ? "" : "s"}` + (LOG.dropped ? ` · ${fmtInt(LOG.dropped)} older lines trimmed` : "");
+    const pre = $("#logPre");
+    if (!pre.classList.contains("hidden")) {
+      const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+      pre.textContent = LOG.entries.slice(-400).map(logLine).join("\n");
+      if (atBottom) pre.scrollTop = pre.scrollHeight;
+    }
+  }
+  $("#logToggle").addEventListener("click", () => {
+    const pre = $("#logPre"); pre.classList.toggle("hidden");
+    $("#logToggle").textContent = pre.classList.contains("hidden") ? "Show log" : "Hide log";
+    renderLog(); pre.scrollTop = pre.scrollHeight;
+  });
+  $("#logClear").addEventListener("click", () => { LOG.entries = []; LOG.reqs = 0; LOG.errs = 0; LOG.dropped = 0; LOG.started = Date.now(); renderLog(); });
+  $("#logDl").addEventListener("click", () => {
+    const s = state.self, u = state.user;
+    const head = [
+      `ArcGIS Online Storage Cleanup - For Teachers ${$("#appVersion").textContent}, troubleshooting log`,
+      `App version: ${APP_VERSION}`,
+      `Created: ${new Date().toString()}`,
+      `Page: ${location.origin}${location.pathname}`,
+      `Browser: ${navigator.userAgent}`,
+      `Portal: ${state.portal || "(not signed in)"}`,
+      s ? `Org: ${s.name} (${s.id}) isPortal=${!!s.isPortal} urlKey=${s.urlKey || ""}` : "Org: (not signed in)",
+      u ? `User: ${u.username} role=${u.role} roleId=${u.roleId || ""} privileges=${(u.privileges || []).length}` : "User: (not signed in)",
+      `Requests: ${LOG.reqs} · errors: ${LOG.errs} · lines trimmed: ${LOG.dropped}`,
+      "Tokens and passwords are never written to this log.",
+      "-".repeat(80), ""
+    ];
+    const ts = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([head.join("\n") + LOG.entries.map(logLine).join("\n")], { type: "text/plain;charset=utf-8" }));
+    a.download = `storage-cleanup-teachers-log-${ts}.txt`; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  });
+
+  // ================= APP TABS =================
+  function showTab(name) {
+    document.querySelectorAll(".apptabs button").forEach(b => b.classList.toggle("active", b.dataset.apptab === name));
+    document.querySelectorAll(".tabpanel").forEach(p => p.classList.toggle("hidden", p.id !== "tab-" + name));
+    try { sessionStorage.setItem("agoCleanup.tab", name); } catch (e) {}
+    if (name === "overview" && state.ov) drawBalanceChart($("#oChart"), state.ov);
+  }
+  document.querySelectorAll(".apptabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.apptab)));
+  try { const t = sessionStorage.getItem("agoCleanup.tab"); if (["overview", "recycle", "suspects"].includes(t)) showTab(t); } catch (e) {}
+
+  // ================= TAB: OVERVIEW =================
+  const TERM_START = Date.UTC(2025, 7, 1);                 // Aug 1, 2025 (credit reset)
+  const TERM_END = Date.UTC(2027, 6, 31, 23, 59, 59);      // Jul 31, 2027
+  const NEXT_START = Date.UTC(2027, 7, 1);                 // Aug 1, 2027
+  const NEXT_DAYS = 366;                                   // Aug 1, 2027 – Jul 31, 2028 (includes Feb 29, 2028)
+  const RESET_CREDITS = 50000;
+  const fmtDay = (ms) => new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  const fmtC0 = (c) => Math.round(c).toLocaleString();
+  function oProgress(frac, text) {
+    $("#oBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+    if (text !== undefined) $("#oStatus").textContent = text;
+  }
+
+  // Friendly names for usage reporting's service codes (unknown codes are shown as-is).
+  const USAGE_NAMES = {
+    featurestorage: "Feature storage", featstg: "Feature storage", features: "Feature storage",
+    filestorage: "File storage", filestg: "File storage", files: "File storage",
+    tilestorage: "Tile storage", tilestg: "Tile storage", tiles: "Tile storage",
+    imagestorage: "Imagery storage", imagerystorage: "Imagery storage", imgstg: "Imagery storage", imagery: "Imagery storage",
+    scenestorage: "Scene storage", scenes: "Scene storage", vectortiles: "Vector tile storage", vtiles: "Vector tile storage",
+    geocode: "Geocoding", geocoding: "Geocoding", batchgeocode: "Batch geocoding",
+    routing: "Routing and directions", route: "Routing and directions", network: "Network analysis", networkanalysis: "Network analysis",
+    spatialanalysis: "Spatial analysis", spanalysis: "Spatial analysis", analysis: "Spatial analysis", rasteranalysis: "Raster analysis",
+    geoenrichment: "GeoEnrichment", demographics: "Demographics", demog: "Demographics", infographics: "Infographics",
+    notebooks: "ArcGIS Notebooks", intnotebks: "ArcGIS Notebooks", elevation: "Elevation analysis",
+    tracking: "Location sharing", locationtracking: "Location sharing", premiumcontent: "Premium content", subscribercontent: "Premium content"
+  };
+  function usageLabel(etype, stype) {
+    const s = String(stype || "").toLowerCase(), e = String(etype || "").toLowerCase();
+    let name = USAGE_NAMES[s] || USAGE_NAMES[e] || "";
+    const storage = /stor|stg/.test(e + " " + s) || /storage/.test(name);
+    if (!name) name = (s || e || "Other").replace(/^./, c => c.toUpperCase());
+    if (storage && !/storage/i.test(name)) name += " storage";
+    return { name, storage };
+  }
+
+  async function orgCreditUsage(start, end) {
+    const perKey = new Map();          // "etype|stype" -> Map(dayTs -> credits)  (dedupes overlapping chunks)
+    const chunks = [];
+    for (let t = start; t < end; t += 30 * DAY) chunks.push([t, Math.min(end, t + 30 * DAY)]);
+    let done = 0;
+    for (const [a, b] of chunks) {
+      if (state.cancel) return null;
+      const r = await api(`/portals/${encodeURIComponent(state.self.id)}/usage`,
+        { startTime: a, endTime: b, period: "1d", vars: "credits", groupby: "etype,stype" }, { method: "GET" });
+      for (const d of (r.data || [])) {
+        const key = `${d.etype || ""}|${d.stype || ""}`;
+        if (!perKey.has(key)) perKey.set(key, new Map());
+        const m = perKey.get(key);
+        for (const p of (d.credits || [])) { const ts = Number(p[0]), v = Number(p[1]) || 0; if (ts >= start && ts < end) m.set(ts, v); }
+      }
+      done++;
+      oProgress(0.1 + 0.85 * done / chunks.length, `Reading credit usage… ${done} of ${chunks.length} month(s)`);
+    }
+    const byDay = new Map(), byType = [];
+    for (const [key, m] of perKey) {
+      const [etype, stype] = key.split("|");
+      let tot = 0, last30 = 0;
+      for (const [ts, v] of m) { tot += v; byDay.set(ts, (byDay.get(ts) || 0) + v); if (ts >= end - 30 * DAY) last30 += v; }
+      const lab = usageLabel(etype, stype);
+      byType.push({ etype, stype, label: lab.name, storage: lab.storage, credits: tot, last30 });
+    }
+    // merge rows that map to the same friendly name
+    const merged = new Map();
+    for (const r of byType) {
+      const m = merged.get(r.label) || { label: r.label, storage: r.storage, credits: 0, last30: 0, codes: [] };
+      m.credits += r.credits; m.last30 += r.last30; m.codes.push([r.etype, r.stype].filter(Boolean).join(" / "));
+      merged.set(r.label, m);
+    }
+    return { byDay, byType: [...merged.values()].filter(r => r.credits > 0.0049).sort((a, b) => b.credits - a.credits) };
+  }
+
+  $("#oScanBtn").addEventListener("click", runOverview);
+  $("#oCancelBtn").addEventListener("click", () => { state.cancel = true; oProgress(0, "Cancelling…"); });
+
+  async function runOverview() {
+    if (state.busy) return;
+    setBusy(true);
+    state.cancel = false;
+    $("#oCancelBtn").classList.remove("hidden");
+    const errors = [];
+    logEvent("INFO", "=== Overview (credit consumption) started ===");
+    try {
+      const now = Date.now();
+      oProgress(0.04, "Reading your organization's credit balance…");
+      const self = await api("/portals/self");
+      const balance = typeof self.availableCredits === "number" ? self.availableCredits : null;
+      logEvent("INFO", `Overview: availableCredits = ${balance ?? "not reported"}`);
+
+      let usage = null;
+      try { usage = await orgCreditUsage(TERM_START, now); }
+      catch (e) {
+        if (e.auth) throw e;
+        errors.push({ title: "Credit usage", msg: `Couldn't read credit usage (${e.message}). Consumption is estimated as 50,000 minus your current balance.` });
+        logEvent("WARN", "Overview: usage reporting unavailable: " + e.message);
+      }
+      if (state.cancel) return oProgress(0, "Cancelled.");
+
+      const daysElapsed = Math.max(1, (now - TERM_START) / DAY);
+      let used, byType = [], byDay = null, source;
+      if (usage) {
+        byType = usage.byType; byDay = usage.byDay;
+        used = byType.reduce((a, r) => a + r.credits, 0);
+        source = "usage";
+      } else if (balance != null) {
+        used = Math.max(0, RESET_CREDITS - balance); source = "estimate";
+      } else {
+        oProgress(0, "Couldn't read the credit balance or credit usage. This tab needs an administrator account.");
+        return;
+      }
+      const bal = balance != null ? balance : RESET_CREDITS - used;
+      const startBal = bal + used;
+      const rate = used / daysElapsed;
+      const last30 = byDay ? [...byDay].filter(([ts]) => ts >= now - 30 * DAY).reduce((a, [, v]) => a + v, 0) / Math.min(30, daysElapsed) : null;
+      const storageRate = byType.length ? byType.filter(r => r.storage).reduce((a, r) => a + r.credits, 0) / daysElapsed : null;
+      const daysLeft = Math.max(0, (TERM_END - now) / DAY);
+      const endBal = bal - rate * daysLeft;
+      const runOut = rate > 0 ? now + bal / rate * DAY : null;
+      const endBal30 = last30 != null ? bal - last30 * daysLeft : null;
+      const runOut30 = last30 > 0 ? now + bal / last30 * DAY : null;
+
+      state.ov = { now, bal, used, startBal, rate, last30, storageRate, daysElapsed, daysLeft, endBal, runOut, endBal30, runOut30, byType, byDay, source, errors };
+      logEvent("SUMMARY", `Overview: balance ${fmtCred(bal)} · used since Aug 1, 2025 ${fmtCred(used)} over ${daysElapsed.toFixed(1)} days (${fmtCred(rate)}/day; last 30 days ${last30 == null ? "n/a" : fmtCred(last30)}/day) · implied starting balance ${fmtCred(startBal)} · projected balance Jul 31, 2027 ${fmtCred(endBal)} · source ${source}`);
+      byType.forEach(r => logEvent("DETAIL", `Usage · ${r.label} [${r.codes.join(", ")}]: ${fmtCred(r.credits)} credits since Aug 1, 2025`));
+      oProgress(1, `Done. ${fmtC0(used)} credits used since August 1, 2025.`);
+      renderOverview();
+    } catch (e) {
+      logEvent("ERROR", "Overview stopped: " + e.message);
+      if (e.auth) { oProgress(0, ""); showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again."); }
+      else oProgress(0, "Failed: " + e.message);
+    } finally {
+      setBusy(false);
+      $("#oCancelBtn").classList.add("hidden");
+    }
+  }
+
+  function verdictBox(kind, title, detail) {
+    const icon = { good: "✓", warn: "!", bad: "✕" }[kind];
+    const label = { good: "On track", warn: "Tight", bad: "Not enough credits" }[kind];
+    return `<div class="verdict ${kind}"><div class="vicon" aria-hidden="true">${icon}</div><div><div class="vlabel">${label}</div><div class="vtitle">${title}</div><div class="vdetail">${detail}</div></div></div>`;
+  }
+
+  function renderOverview() {
+    const o = state.ov; if (!o) return;
+    $("#oResultsWrap").classList.remove("hidden");
+    const pctLeft = o.bal > 0 ? o.endBal / o.bal : 0;
+    let kind, title;
+    if (o.endBal < 0) {
+      kind = "bad";
+      title = `At the current pace, credits run out around ${fmtDay(o.runOut)}, about ${fmtC0((TERM_END - o.runOut) / DAY)} days before the term ends on July 31, 2027.`;
+    } else if (pctLeft < 0.1) {
+      kind = "warn";
+      title = `Credits should last until July 31, 2027, but only about ${fmtC0(o.endBal)} would be left.`;
+    } else {
+      kind = "good";
+      title = `Credits should last until July 31, 2027, with about ${fmtC0(o.endBal)} left over.`;
+    }
+    const need = o.rate * o.daysLeft;
+    let detail = `You have ${fmtC0(o.bal)} credits. Using ${fmtCred(o.rate)} a day for the remaining ${fmtC0(o.daysLeft)} days would take about ${fmtC0(need)}.`;
+    if (o.endBal < 0) detail += ` Shortfall: about ${fmtC0(-o.endBal)} credits.`;
+    if (o.last30 != null) {
+      detail += ` At the last 30 days' pace (${fmtCred(o.last30)} a day), ` + (o.endBal30 >= 0
+        ? `about ${fmtC0(o.endBal30)} would be left.`
+        : `credits would run out around ${fmtDay(o.runOut30)}.`);
+    }
+    if (o.source === "estimate") detail += " Credit usage couldn't be read, so consumption is estimated as 50,000 minus your current balance.";
+    $("#oVerdict").innerHTML = verdictBox(kind, title, detail);
+
+    $("#oTiles").innerHTML = [
+      ["Available credits", fmtC0(o.bal), "current balance"],
+      ["Used since Aug 1, 2025", fmtC0(o.used), `over ${fmtC0(o.daysElapsed)} days · started at ~${fmtC0(o.startBal)}`],
+      ["Average use per day", fmtCred(o.rate), `about ${fmtC0(o.rate * 30.44)} a month · all services`],
+      ["Last 30 days, per day", o.last30 == null ? "n/a" : fmtCred(o.last30), o.last30 == null ? "usage not available" : `about ${fmtC0(o.last30 * 30.44)} a month`],
+      ["Projected on Jul 31, 2027", (o.endBal < 0 ? "−" : "") + fmtC0(Math.abs(o.endBal)), o.endBal < 0 ? "shortfall at the current average" : "left over at the current average"]
+    ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+
+    drawBalanceChart($("#oChart"), o);
+    renderUsageTable();
+    renderModel();
+    const errs = o.errors || [];
+    $("#oErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
+      errs.map(e => `<li><b>${esc(e.title)}</b>: ${esc(e.msg)}</li>`).join("")}</ul></details>` : "";
+  }
+
+  function niceMax(v) {
+    const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, v))));
+    for (const m of [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  }
+
+  function drawBalanceChart(el, o) {
+    const W = Math.max(520, el.clientWidth || 900), H = 300;
+    const m = { l: 62, r: 18, t: 16, b: 34 };
+    const x0 = TERM_START, x1 = TERM_END;
+    const ymax = niceMax(Math.max(o.startBal, o.bal, 1) * 1.04);
+    const X = (t) => m.l + (Math.min(x1, Math.max(x0, t)) - x0) / (x1 - x0) * (W - m.l - m.r);
+    const Y = (v) => m.t + (1 - Math.max(0, v) / ymax) * (H - m.t - m.b);
+    // actual series: start balance, minus each day's credits
+    const actual = [[x0, o.startBal]];
+    if (o.byDay && o.byDay.size) {
+      let left = o.startBal;
+      for (const [ts, v] of [...o.byDay].sort((a, b) => a[0] - b[0])) { left -= v; actual.push([Math.min(o.now, ts + DAY), left]); }
+    }
+    actual.push([o.now, o.bal]);
+    const projEnd = o.endBal >= 0 ? [x1, o.endBal] : [o.runOut, 0];
+    const path = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
+    // ticks
+    const yt = [0, .25, .5, .75, 1].map(f => f * ymax);
+    const months = [];
+    for (let t = TERM_START, i = 0; t <= x1; i++, t = Date.UTC(2025, 7 + i, 1)) months.push(t);
+    let lastYear = null;   // show the year on the first labeled month of each year
+    const mlabel = (t) => { const d = new Date(t), y = d.getUTCFullYear(); const withYear = y !== lastYear; lastYear = y; return d.toLocaleDateString(undefined, { month: "short", timeZone: "UTC" }) + (withYear ? " " + y : ""); };
+    const svg = `
+      <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Credits remaining from August 1, 2025 to July 31, 2027">
+        ${yt.map(v => `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="${v === 0 ? "base" : "grid"}"/>
+          <text x="${m.l - 8}" y="${Y(v) + 4}" class="ylab">${fmtC0(v)}</text>`).join("")}
+        ${months.map((t, i) => `<line x1="${X(t)}" x2="${X(t)}" y1="${H - m.b}" y2="${H - m.b + 4}" class="tick"/>${(months.length <= 14 || i % 2 === 0) ? `<text x="${X(t) + 3}" y="${H - m.b + 17}" class="xlab">${mlabel(t)}</text>` : ""}`).join("")}
+        <line x1="${X(o.now)}" x2="${X(o.now)}" y1="${m.t}" y2="${H - m.b}" class="today"/>
+        <text x="${X(o.now) + 5}" y="${m.t + 11}" class="note">Today</text>
+        <path d="${path(actual)}" class="actual"/>
+        <path d="${path([[o.now, o.bal], projEnd])}" class="proj ${o.endBal < 0 ? "bad" : ""}"/>
+        <circle cx="${X(o.now)}" cy="${Y(o.bal)}" r="4.5" class="dot"/>
+        ${o.endBal < 0
+          ? `<circle cx="${X(o.runOut)}" cy="${Y(0)}" r="5" class="dot bad"/><text x="${Math.min(X(o.runOut), W - m.r - 150)}" y="${Y(0) - 10}" class="note bad">Runs out ~${new Date(o.runOut).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</text>`
+          : `<circle cx="${X(x1)}" cy="${Y(o.endBal)}" r="4.5" class="dot hollow"/><text x="${X(x1) - 6}" y="${Y(o.endBal) - 10}" class="note end">${fmtC0(o.endBal)} left</text>`}
+        <line class="xhair hidden" y1="${m.t}" y2="${H - m.b}"/>
+        <circle class="xdot hidden" r="5"/>
+        <rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent" class="hit"/>
+      </svg>
+      <div class="ctip hidden"></div>`;
+    el.innerHTML = svg;
+    // hover: crosshair + tooltip
+    const s = el.querySelector("svg"), hit = el.querySelector(".hit"), xh = el.querySelector(".xhair"), xd = el.querySelector(".xdot"), tip = el.querySelector(".ctip");
+    const valueAt = (t) => {
+      if (t <= o.now) {
+        let lo = 0, hi = actual.length - 1;
+        while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (actual[mid][0] <= t) lo = mid; else hi = mid - 1; }
+        return { v: actual[lo][1], proj: false };
+      }
+      return { v: Math.max(0, o.bal - o.rate * (t - o.now) / DAY), proj: true };
+    };
+    hit.addEventListener("mousemove", (ev) => {
+      const r = s.getBoundingClientRect();
+      const px = ev.clientX - r.left;
+      const t = x0 + (px - m.l) / (W - m.l - m.r) * (x1 - x0);
+      const { v, proj } = valueAt(t);
+      xh.setAttribute("x1", px); xh.setAttribute("x2", px); xh.classList.remove("hidden");
+      xd.setAttribute("cx", px); xd.setAttribute("cy", Y(v)); xd.classList.remove("hidden");
+      tip.innerHTML = `<b>${new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</b><br>${fmtC0(v)} credits ${proj ? "(projected)" : "remaining"}`;
+      tip.classList.remove("hidden");
+      tip.style.left = Math.min(px + 12, W - 190) + "px";
+      tip.style.top = Math.max(0, Y(v) - 46) + "px";
+    });
+    hit.addEventListener("mouseleave", () => { xh.classList.add("hidden"); xd.classList.add("hidden"); tip.classList.add("hidden"); });
+  }
+
+  function renderUsageTable() {
+    const o = state.ov;
+    $("#oThead").innerHTML = `<tr><th>Service</th><th class="num">Credits since Aug 1, 2025</th><th class="num">Share</th><th class="num">Per day</th><th class="num">Last 30 days</th><th class="num">At this rate for 12 months</th></tr>`;
+    if (!o.byType.length) {
+      $("#oTbody").innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:16px">A breakdown by service isn't available.</td></tr>`;
+      return;
+    }
+    const max = Math.max(...o.byType.map(r => r.credits));
+    $("#oTbody").innerHTML = o.byType.map(r => `<tr>
+      <td><b>${esc(r.label)}</b><div class="meta" style="font-size:11.5px;color:var(--muted)">${esc(r.codes.join(", "))}</div></td>
+      <td class="num" style="font-weight:700">${fmtCred(r.credits)}<div class="sizebar"><span style="width:${(100 * r.credits / max).toFixed(2)}%;background:var(--accent)"></span></div></td>
+      <td class="num">${(100 * r.credits / Math.max(1e-9, o.used)).toFixed(1)}%</td>
+      <td class="num">${fmtCred(r.credits / o.daysElapsed)}</td>
+      <td class="num">${fmtCred(r.last30)}</td>
+      <td class="num">${fmtC0(r.credits / o.daysElapsed * 365)}</td>
+    </tr>`).join("") + `<tr class="totalrow"><td><b>All services</b></td><td class="num"><b>${fmtCred(o.used)}</b></td><td class="num">100%</td><td class="num"><b>${fmtCred(o.rate)}</b></td><td class="num">${o.last30 == null ? "n/a" : fmtCred(o.last30 * Math.min(30, o.daysElapsed))}</td><td class="num"><b>${fmtC0(o.rate * 365)}</b></td></tr>`;
+  }
+
+  const ALLOTMENTS = [1000, 2500, 5000, 10000, 25000];
+  state.oAllot = (() => { try { const v = Number(localStorage.getItem("agoCleanup.allot")); return ALLOTMENTS.includes(v) ? v : 5000; } catch (e) { return 5000; } })();
+  function syncAllotButtons() {
+    document.querySelectorAll("#oAllot button").forEach(b => { const on = Number(b.dataset.v) === state.oAllot; b.classList.toggle("active", on); b.setAttribute("aria-checked", on ? "true" : "false"); });
+  }
+  syncAllotButtons();
+  document.querySelectorAll("#oAllot button").forEach(b => b.addEventListener("click", () => {
+    state.oAllot = Number(b.dataset.v);
+    try { localStorage.setItem("agoCleanup.allot", String(state.oAllot)); } catch (e) {}
+    syncAllotButtons();
+    if (state.ov) renderModel();
+  }));
+
+  function modelFor(allot, o) {
+    const annual = o.rate * NEXT_DAYS;
+    const coverDays = o.rate > 0 ? allot / o.rate : Infinity;
+    const lastsAll = coverDays >= NEXT_DAYS;
+    return { allot, annual, diff: allot - annual, coverDays, lastsAll, runOut: lastsAll ? null : NEXT_START + coverDays * DAY,
+      cutPct: annual > allot ? (annual - allot) / annual : 0, perDayBudget: allot / NEXT_DAYS };
+  }
+
+  function renderModel() {
+    const o = state.ov; if (!o) return;
+    const md = modelFor(state.oAllot, o);
+    const storageYr = o.storageRate != null ? o.storageRate * NEXT_DAYS : null;
+    const kind = md.lastsAll ? (md.diff / md.allot < 0.1 ? "warn" : "good") : "bad";
+    const title = md.lastsAll
+      ? `${fmtC0(md.allot)} credits would cover school year 2027–2028, with about ${fmtC0(md.diff)} to spare.`
+      : `${fmtC0(md.allot)} credits would run out around ${fmtDay(md.runOut)}, about ${fmtC0(NEXT_DAYS - md.coverDays)} days before July 31, 2028.`;
+    let detail = `At ${fmtCred(o.rate)} credits a day, school year 2027–2028 would use about ${fmtC0(md.annual)} credits.`;
+    if (!md.lastsAll) detail += ` To stay within ${fmtC0(md.allot)}, consumption would need to drop by about ${(md.cutPct * 100).toFixed(0)}%, to ${fmtCred(md.perDayBudget)} credits a day.`;
+    if (storageYr != null) detail += ` Storage alone accounts for about ${fmtC0(storageYr)} of that${storageYr > md.allot ? ", more than the whole allotment" : ""}.`;
+    const maxv = Math.max(md.allot, md.annual, 1);
+    const bars = `
+      <div class="mbars">
+        <div class="mrow"><span class="mlab">Anticipated credits</span><div class="mtrack"><span style="width:${(100 * md.allot / maxv).toFixed(2)}%;background:#8a97a6"></span></div><span class="mval">${fmtC0(md.allot)}</span></div>
+        <div class="mrow"><span class="mlab">Projected use, 2027–2028</span><div class="mtrack"><span style="width:${(100 * md.annual / maxv).toFixed(2)}%;background:var(--accent)"></span></div><span class="mval">${fmtC0(md.annual)}</span></div>
+        ${storageYr != null ? `<div class="mrow"><span class="mlab">of which storage</span><div class="mtrack"><span style="width:${(100 * storageYr / maxv).toFixed(2)}%;background:#d0661d"></span></div><span class="mval">${fmtC0(storageYr)}</span></div>` : ""}
+      </div>`;
+    const all = ALLOTMENTS.map(a => modelFor(a, o));
+    const table = `
+      <div class="tablewrap" style="margin-top:14px"><table class="mtable">
+        <thead><tr><th>Anticipated credits</th><th class="num">Projected use</th><th class="num">Surplus / shortfall</th><th>Credits last until</th><th class="num">Cut needed</th></tr></thead>
+        <tbody>${all.map(x => `<tr class="${x.allot === md.allot ? "sel" : ""}">
+          <td><b>${fmtC0(x.allot)}</b></td>
+          <td class="num">${fmtC0(x.annual)}</td>
+          <td class="num ${x.diff < 0 ? "neg" : "pos"}">${x.diff < 0 ? "−" : "+"}${fmtC0(Math.abs(x.diff))}</td>
+          <td>${x.lastsAll ? "All year (Jul 31, 2028)" : new Date(x.runOut).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</td>
+          <td class="num">${x.cutPct ? (x.cutPct * 100).toFixed(0) + "%" : "–"}</td></tr>`).join("")}</tbody>
+      </table></div>`;
+    $("#oModel").innerHTML = verdictBox(kind, title, detail) + bars + table +
+      `<p class="hint" style="margin:12px 0 0">To bring consumption down, start with storage: it keeps charging every day, while most other services only charge when they're used.</p>`;
+  }
+
+  function oCsv() {
+    const o = state.ov; if (!o) return;
+    const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [["Service", "Usage codes", "Storage", "Credits since Aug 1 2025", "Share %", "Per day", "Last 30 days", "At this rate for 12 months"].join(",")];
+    for (const r of o.byType) lines.push([r.label, r.codes.join("; "), r.storage ? "yes" : "no", r.credits.toFixed(2), (100 * r.credits / Math.max(1e-9, o.used)).toFixed(2),
+      (r.credits / o.daysElapsed).toFixed(2), r.last30.toFixed(2), (r.credits / o.daysElapsed * 365).toFixed(0)].map(q).join(","));
+    lines.push(["All services", "", "", o.used.toFixed(2), "100", o.rate.toFixed(2), "", (o.rate * 365).toFixed(0)].map(q).join(","));
+    lines.push("");
+    lines.push(["Available credits now", o.bal.toFixed(2)].join(","));
+    lines.push(["Projected balance Jul 31 2027", o.endBal.toFixed(2)].join(","));
+    download(`credit-overview-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
+  }
+  $("#oCsvBtn").addEventListener("click", oCsv);
+  let oResizeT;
+  window.addEventListener("resize", () => { clearTimeout(oResizeT); oResizeT = setTimeout(() => { if (state.ov && !$("#tab-overview").classList.contains("hidden")) drawBalanceChart($("#oChart"), state.ov); }, 150); });
+
+  // ================= TAB: RECYCLE BIN =================
+  const fmtSize = (b) => b >= 1024 * MB ? fmtGB(b) + " GB" : fmtMB(b) + " MB";
+  const isAdminUser = () => {
+    const u = state.user || {};
+    return u.role === "org_admin" && (!u.roleId || (u.privileges || []).some(p => p.startsWith("portal:admin:")));
+  };
+  function rbProgress(frac, text) {
+    $("#rbBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+    if (text !== undefined) $("#rbStatusLine").textContent = text;
+  }
+  function rbStorageType(it) {
+    const kw = (it.typeKeywords || []).map(k => String(k).toLowerCase());
+    const hosted = kw.includes("hosted service");
+    if (it.type === "Feature Service" && hosted && !kw.includes("view service")) return "feature";
+    if (it.type === "Image Service" && hosted) return "imagery";
+    return "file";
+  }
+  // Credits one month of storage would cost for an item.
+  const rbMonthCredits = (it) => {
+    const b = Math.max(0, Number(it.size) || 0);
+    return rbStorageType(it) === "feature" ? b / MB / 10 * 2.4 : b / GB * 1.2;
+  };
+  const MANUAL_STEPS = (on) => `To change it by hand: in ArcGIS Online, go to <b>Organization › Settings › Items</b>, and in the <b>Recycle bin</b> section choose <b>${on ? "Opt in to the recycle bin" : "Opt out of the recycle bin"}</b>.`;
+
+  // ---- dialog helpers (confirmations) ----
+  function openDialog(title, html) {
+    $("#dlgTitle").textContent = title;
+    $("#dlgBody").innerHTML = html;
+    const d = $("#infoDlg");
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+  }
+  function closeDialog() { const d = $("#infoDlg"); if (d.close) d.close(); else d.removeAttribute("open"); }
+  $("#dlgClose").addEventListener("click", closeDialog);
+  $("#infoDlg").addEventListener("click", (e) => { if (e.target === $("#infoDlg")) closeDialog(); });
+  function confirmDialog({ title, html, confirmLabel = "Confirm", danger = false, ack = "" }) {
+    return new Promise((resolve) => {
+      let answered = false;
+      openDialog(title, html +
+        (ack ? `<label class="ackline"><input type="checkbox" id="dlgAck"> <span>${ack}</span></label>` : "") +
+        `<div class="dlg-actions"><button class="secondary" id="dlgCancel">Cancel</button><button id="dlgOk" class="${danger ? "danger" : ""}" ${ack ? "disabled" : ""}>${confirmLabel}</button></div>`);
+      const done = (v) => { if (answered) return; answered = true; closeDialog(); resolve(v); };
+      if (ack) $("#dlgAck").addEventListener("change", (e) => { $("#dlgOk").disabled = !e.target.checked; });
+      $("#dlgCancel").addEventListener("click", () => done(false));
+      $("#dlgOk").addEventListener("click", () => done(true));
+      $("#infoDlg").addEventListener("close", () => done(false), { once: true });
+    });
+  }
+
+  // ---- status + toggle ----
+  function renderRecycleStatus() {
+    const s = state.self || {};
+    const supported = s.recycleBinSupported !== false;
+    const enabled = s.recycleBinEnabled === true;
+    const admin = isAdminUser();
+    $("#rbPill").innerHTML = !supported ? '<span class="pill">not available</span>'
+      : enabled ? '<span class="pill rb-on">● On</span>' : '<span class="pill rb-off">● Off</span>';
+    const t = $("#rbToggle");
+    t.checked = supported && enabled;
+    t.disabled = !supported || !admin || state.busy;
+    $("#rbToggleLabel").textContent = !supported ? "Your organization type doesn't support the recycle bin."
+      : enabled ? "Recycle bin is ON for the whole organization" : "Recycle bin is OFF for the whole organization";
+    $("#rbToggleHint").innerHTML = !supported ? "Nothing to change here."
+      : !admin ? "Only an organization administrator can change this setting."
+      : enabled ? "Turn it off so deleted items are removed right away instead of being kept for 14 days."
+      : "Deleted items are removed right away. Turning it on keeps them for 14 days so they can be restored.";
+    const scope = admin ? "Whole organization (administrator)" : `Your items only (${esc(state.user ? state.user.username : "")})`;
+    $("#rbScope").innerHTML = scope;
+    $("#sScope").textContent = admin ? "every hosted feature layer in the organization (administrator)" : `your own hosted feature layers (${state.user ? state.user.username : ""})`;
+  }
+
+  async function refreshRecycleStatus() {
+    const self = await api("/portals/self");
+    state.self.recycleBinSupported = self.recycleBinSupported;
+    state.self.recycleBinEnabled = self.recycleBinEnabled;
+    logEvent("INFO", `Recycle bin: supported=${self.recycleBinSupported ?? "not reported"} · enabled=${self.recycleBinEnabled ?? "not reported"}`);
+    renderRecycleStatus();
+    return self;
+  }
+  $("#rbRefreshBtn").addEventListener("click", async () => {
+    try { await refreshRecycleStatus(); showMsg($("#rbToggleMsg"), "", ""); }
+    catch (e) { showMsg($("#rbToggleMsg"), "err", "Couldn't read the recycle bin setting: " + esc(e.message)); }
+  });
+
+  $("#rbToggle").addEventListener("change", async (e) => {
+    const want = e.target.checked;
+    e.target.checked = !want;                 // stay as-is until confirmed and saved
+    const ok = await confirmDialog(want ? {
+      title: "Turn on the recycle bin?",
+      html: "<p>Items that members delete will be kept in the recycle bin for at least 14 days so they can be restored. While they wait there, they keep counting toward your organization's storage and credits.</p>",
+      confirmLabel: "Turn on"
+    } : {
+      title: "Turn off the recycle bin?",
+      html: "<p>Items that members delete from now on will be <b>removed permanently right away</b>, with no way to restore them. This saves the credits those items would use while waiting in the recycle bin.</p><p class=\"hint\">Items already in the recycle bin may stay there until they expire. Use <b>Empty recycle bin now</b> below to remove them immediately.</p>",
+      confirmLabel: "Turn off", danger: true
+    });
+    if (!ok) return;
+    setBusy(true);
+    showMsg($("#rbToggleMsg"), "info", `${want ? "Turning on" : "Turning off"} the recycle bin…`);
+    try {
+      await api(`/portals/${encodeURIComponent(state.self.id)}/update`, { recycleBinEnabled: want });
+      const self = await refreshRecycleStatus();
+      if ((self.recycleBinEnabled === true) === want) {
+        logEvent("INFO", `Recycle bin turned ${want ? "on" : "off"} for the organization`);
+        showMsg($("#rbToggleMsg"), "info", `The recycle bin is now <b>${want ? "on" : "off"}</b> for your organization.`);
+      } else {
+        logEvent("WARN", `Recycle bin update accepted, but setting still reads ${self.recycleBinEnabled}`);
+        showMsg($("#rbToggleMsg"), "warn", `ArcGIS Online accepted the request, but the setting still shows the recycle bin as <b>${self.recycleBinEnabled ? "on" : "off"}</b>. ${MANUAL_STEPS(want)}`);
+      }
+    } catch (err) {
+      if (err.auth) { showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(err.message) + "). Sign out and sign in again."); }
+      showMsg($("#rbToggleMsg"), "err", `Couldn't change the setting: ${esc(String(err.message).replace(/\.+$/, ""))}. ${MANUAL_STEPS(want)}`);
+    } finally {
+      setBusy(false);
+      renderRecycleStatus();
+    }
+  });
+
+  // ---- list ----
+  async function listRecycleBin(prog) {
+    const admin = isAdminUser();
+    const path = admin ? `/content/portals/${encodeURIComponent(state.self.id)}` : `/content/users/${encodeURIComponent(state.user.username)}`;
+    const found = new Map();
+    let start = 1, guard = 0;
+    do {
+      const r = await api(path, { foldersContent: true, inRecycleBin: true, start, num: 100 }, { method: "GET" });
+      for (const it of (r.items || [])) found.set(it.id, it);
+      if (prog) prog(found.size, r.total);
+      start = r.nextStart;
+    } while (start && start > 0 && !state.cancel && ++guard < 500);
+    // Items listed without a usable size: read their details from the recycle bin.
+    for (const it of found.values()) {
+      if (typeof it.size === "number" && it.size >= 0) continue;
+      try {
+        const d = await api(`/content/users/${encodeURIComponent(it.owner)}/items/${it.id}`, { inRecycleBin: true }, { method: "GET" });
+        it.size = typeof d.size === "number" ? d.size : -1;
+        if (!it.typeKeywords && d.typeKeywords) it.typeKeywords = d.typeKeywords;
+      } catch (e) { if (e.auth) throw e; it.size = -1; }
+    }
+    return [...found.values()];
+  }
+
+  function renderBin(items) {
+    const bytes = items.reduce((a, it) => a + Math.max(0, it.size || 0), 0);
+    const cr = items.reduce((a, it) => a + rbMonthCredits(it), 0);
+    const owners = new Set(items.map(it => it.owner)).size;
+    $("#rbTiles").classList.toggle("hidden", !items.length);
+    $("#rbTiles").innerHTML = [
+      ["Items in the recycle bin", fmtInt(items.length), `from ${fmtInt(owners)} member${owners === 1 ? "" : "s"}`],
+      ["Storage used", fmtSize(bytes), "by items waiting to be deleted"],
+      ["Credits per month", fmtCred(cr), "while these items stay in the bin"]
+    ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+    const rows = items.slice().sort((a, b) => (b.size || 0) - (a.size || 0));
+    $("#rbTableWrap").classList.toggle("hidden", !rows.length);
+    $("#rbTbody").innerHTML = rows.map(it => `<tr>
+      <td><b>${esc(it.title || "(untitled)")}</b></td>
+      <td>${esc(it.owner || "")}</td>
+      <td>${esc(it.type || "")}</td>
+      <td class="num">${it.size >= 0 ? fmtMB(it.size) : '<span title="Size not available" style="color:var(--muted)">n/a</span>'}</td>
+      <td class="num">${fmtCred(rbMonthCredits(it))}</td></tr>`).join("");
+    $("#rbEmptyBtn").disabled = !items.length || state.busy;
+  }
+
+  $("#rbListBtn").addEventListener("click", async () => {
+    if (state.busy) return;
+    setBusy(true); state.cancel = false;
+    showMsg($("#rbResult"), "", "");
+    logEvent("INFO", "=== Recycle bin check started ===");
+    try {
+      rbProgress(0.1, "Reading the recycle bin…");
+      const items = await listRecycleBin((n, t) => rbProgress(0.1 + 0.8 * n / Math.max(1, t || n), `Reading the recycle bin… ${fmtInt(n)} item(s)`));
+      state.rb = items;
+      logEvent("SUMMARY", `Recycle bin: ${items.length} item(s), ${fmtMB(items.reduce((a, it) => a + Math.max(0, it.size || 0), 0))} MB, ${fmtCred(items.reduce((a, it) => a + rbMonthCredits(it), 0))} credits per month`);
+      rbProgress(1, items.length ? `Found ${fmtInt(items.length)} item(s) in the recycle bin.` : "The recycle bin is empty.");
+      renderBin(items);
+    } catch (e) {
+      logEvent("ERROR", "Recycle bin check failed: " + e.message);
+      rbProgress(0, "");
+      showMsg($("#rbResult"), "err", e.auth ? "Your sign-in expired or was rejected. Sign out and sign in again."
+        : `Couldn't read the recycle bin: ${esc(e.message)}`);
+    } finally { setBusy(false); }
+  });
+
+  // ---- empty ----
+  $("#rbEmptyBtn").addEventListener("click", async () => {
+    const items = state.rb || [];
+    if (!items.length || state.busy) return;
+    const bytes = items.reduce((a, it) => a + Math.max(0, it.size || 0), 0);
+    const owners = new Set(items.map(it => it.owner)).size;
+    const ok = await confirmDialog({
+      title: "Empty the recycle bin?",
+      html: `<p>This permanently deletes <b>${fmtInt(items.length)} item${items.length === 1 ? "" : "s"}</b> (${fmtSize(bytes)}) belonging to ${fmtInt(owners)} member${owners === 1 ? "" : "s"}.</p><p><b>Deleted items can't be restored.</b> Make sure nobody needs them first.</p>`,
+      confirmLabel: "Delete permanently", danger: true,
+      ack: items.length === 1 ? "I understand this item will be deleted permanently." : `I understand these ${fmtInt(items.length)} items will be deleted permanently.`
+    });
+    if (!ok) return;
+    setBusy(true); state.cancel = false;
+    logEvent("INFO", `=== Emptying recycle bin: ${items.length} item(s) ===`);
+    const deleted = new Set(), failed = new Map();
+    try {
+      // 1. batch delete per owner (up to 100 items per request)
+      const byOwner = new Map();
+      for (const it of items) { if (!byOwner.has(it.owner)) byOwner.set(it.owner, []); byOwner.get(it.owner).push(it); }
+      const batches = [];
+      for (const [owner, list] of byOwner) for (let i = 0; i < list.length; i += 100) batches.push([owner, list.slice(i, i + 100)]);
+      let done = 0;
+      for (const [owner, list] of batches) {
+        try {
+          const r = await api(`/content/users/${encodeURIComponent(owner)}/deleteItems`, { items: list.map(it => it.id).join(","), permanentDelete: true });
+          for (const res of (r.results || [])) {
+            if (res.success) deleted.add(res.itemId);
+            else failed.set(res.itemId, (res.error && (res.error.message || res.error.messageCode)) || "not deleted");
+          }
+        } catch (e) { if (e.auth) throw e; for (const it of list) failed.set(it.id, e.message); }
+        done++;
+        rbProgress(0.6 * done / batches.length, `Deleting… ${fmtInt(deleted.size)} of ${fmtInt(items.length)}`);
+      }
+      // 2. retry anything that failed, one at a time, addressing it in the recycle bin
+      const retry = items.filter(it => !deleted.has(it.id));
+      let k = 0;
+      for (const it of retry) {
+        try {
+          const r = await api(`/content/users/${encodeURIComponent(it.owner)}/items/${it.id}/delete`, { permanentDelete: true, inRecycleBin: true });
+          if (r.success !== false) { deleted.add(it.id); failed.delete(it.id); }
+        } catch (e) { if (e.auth) throw e; failed.set(it.id, e.message); }
+        k++;
+        rbProgress(0.6 + 0.2 * k / retry.length, `Deleting… ${fmtInt(deleted.size)} of ${fmtInt(items.length)}`);
+      }
+      // 3. check what's actually left
+      rbProgress(0.85, "Checking the recycle bin…");
+      let remaining = [];
+      try { remaining = await listRecycleBin(); } catch (e) { if (e.auth) throw e; logEvent("WARN", "Couldn't re-check the recycle bin: " + e.message); remaining = items.filter(it => !deleted.has(it.id)); }
+      const stillThere = new Set(remaining.map(it => it.id));
+      const cleared = items.filter(it => !stillThere.has(it.id));
+      const notCleared = items.filter(it => stillThere.has(it.id));
+      const clearedBytes = cleared.reduce((a, it) => a + Math.max(0, it.size || 0), 0);
+      const saved = cleared.reduce((a, it) => a + rbMonthCredits(it), 0);
+      logEvent("SUMMARY", `Recycle bin emptied: ${cleared.length} of ${items.length} item(s) deleted permanently · ${fmtMB(clearedBytes)} MB cleared · ~${fmtCred(saved)} credits saved (1 month) · ${notCleared.length} still in the bin`);
+      notCleared.forEach(it => logEvent("WARN", `Still in recycle bin: "${it.title}" (${it.id}, owner ${it.owner}) ${failed.get(it.id) || ""}`));
+      state.rb = remaining;
+      renderBin(remaining);
+      rbProgress(1, remaining.length ? `${fmtInt(remaining.length)} item(s) are still in the recycle bin.` : "The recycle bin is now empty.");
+      const kind = notCleared.length ? (cleared.length ? "warn" : "bad") : "good";
+      const label = { good: "Recycle bin emptied", warn: "Partly emptied", bad: "Nothing was deleted" }[kind];
+      const icon = { good: "✓", warn: "!", bad: "✕" }[kind];
+      $("#rbResult").innerHTML = `<div class="verdict ${kind}"><div class="vicon" aria-hidden="true">${icon}</div><div>
+        <div class="vlabel">${label}</div>
+        <div class="vtitle">${cleared.length ? `Cleared ${fmtSize(clearedBytes)} by permanently deleting ${fmtInt(cleared.length)} item${cleared.length === 1 ? "" : "s"}.` : "No items were deleted."}</div>
+        <div class="vdetail">${cleared.length ? `You saved about <b>${fmtCred(saved)} credits</b>, assuming these items would otherwise have stayed in the recycle bin for one month.` : ""}
+          ${notCleared.length ? ` ${fmtInt(notCleared.length)} item${notCleared.length === 1 ? " is" : "s are"} still in the recycle bin${failed.size ? ` (for example: ${esc([...failed.values()][0])})` : ""}; see the troubleshooting log for details.` : ""}</div>
+      </div></div>`;
+    } catch (e) {
+      logEvent("ERROR", "Emptying the recycle bin stopped: " + e.message);
+      rbProgress(0, "");
+      showMsg($("#rbResult"), "err", e.auth ? "Your sign-in expired or was rejected. Sign out and sign in again." : `Couldn't empty the recycle bin: ${esc(e.message)}`);
+    } finally { setBusy(false); }
+  });
+
+  // ---------- shared helpers (from the audit app) ----------
+  async function pool(items, n, fn) {
+    let i = 0;
+    const workers = Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (i < items.length && !state.cancel) { const idx = i++; await fn(items[idx], idx); }
+    });
+    await Promise.all(workers);
+  }
+  function itemUrl(id) {
+    const s = state.self;
+    const host = s && !s.isPortal && s.urlKey && s.customBaseUrl ? `https://${s.urlKey}.${s.customBaseUrl}` : state.portal;
+    return `${host}/home/item.html?id=${id}`;
+  }
+  const FEATURE_CREDITS_PER_10MB_MONTH = 2.4;   // feature storage
+  const IMAGERY_CREDITS_PER_GB_MONTH = 1.2;     // imagery storage
+  function catCredits(cat, bytes) {
+    if (cat === "feature") return bytes / MB / 10 * FEATURE_CREDITS_PER_10MB_MONTH * 12;
+    if (cat === "imagery") return bytes / GB * IMAGERY_CREDITS_PER_GB_MONTH * 12;
+    return bytes / GB * CREDITS_PER_GB_MONTH * 12;           // file storage (and unclassified, priced as file)
+  }
+  function classifyItem(it) {
+    const kw = (it.typeKeywords || []).map(k => String(k).toLowerCase());
+    if (it.type === "Feature Service" && kw.includes("hosted service")) {
+      if (kw.includes("view service")) return null;                     // views use their source layer's storage
+      if (kw.some(k => /location ?tracking/.test(k))) return null;       // location sharing isn't feature storage
+      return { type: "feature", part: "feature" };
+    }
+    if (it.type === "Image Service" && kw.includes("hosted service")) return { type: "imagery", part: "imagery" };
+    if (it.type === "StoryMap") return { type: "file", part: "story" };
+    // The status dashboard reports these hosted layers separately from "File", at the file storage rate.
+    if (kw.includes("hosted service")) {
+      if (it.type === "Map Service") return { type: "file", part: "tile" };
+      if (it.type === "Scene Service") return { type: "file", part: "scene" };
+      if (it.type === "Vector Tile Service") return { type: "file", part: "vtile" };
+    }
+    return { type: "file", part: "otherFiles" };
+  }
+  async function searchAll(q, onPage) {
+    const out = [];
+    let start = 1, total = 0, guard = 0;
+    do {
+      const r = await api("/search", { q, num: 100, start });
+      total = r.total;
+      out.push(...(r.results || []));
+      start = r.nextStart;
+      if (onPage) onPage(out.length, total);
+    } while (start && start > 0 && !state.cancel && ++guard < 200);
+    return { items: out, total };
+  }
+  // Total bytes of attachments in a hosted feature layer (all layers and tables).
+  async function measureAttachments(it) {
+    const base = String(it.url || "").replace(/\/+$/, "");
+    if (!/\/FeatureServer$/i.test(base)) return { bytes: 0, count: 0, layers: 0 };
+    const info = await api(`${base}/layers`, {}, { method: "GET" });
+    const withAtt = [...(info.layers || []), ...(info.tables || [])].filter(l => l.hasAttachments);
+    let bytes = 0, count = 0;
+    for (const l of withAtt) {
+      const page = Math.max(1, Math.min(l.maxRecordCount || 1000, 2000));
+      const seen = new Set();
+      let offset = 0, guard = 0;
+      while (!state.cancel && guard++ < 2000) {
+        const r = await api(`${base}/${l.id}/queryAttachments`,
+          { definitionExpression: "1=1", resultOffset: offset, resultRecordCount: page }, { method: "GET" });
+        const groups = r.attachmentGroups || [];
+        let n = 0, fresh = 0;
+        for (const g of groups) for (const a of (g.attachmentInfos || [])) {
+          n++;
+          const key = String(a.globalId || a.id) + ":" + String(g.parentObjectId ?? g.parentGlobalId ?? "");
+          if (seen.has(key)) continue;
+          seen.add(key); fresh++;
+          bytes += a.size > 0 ? Number(a.size) : 0;
+        }
+        count += fresh;
+        if (!n || !fresh) break;
+        // resultRecordCount may count features or attachments depending on the service; handle both.
+        if (groups.length >= page) offset += groups.length;
+        else if (n >= page || r.exceededTransferLimit) offset += n;
+        else break;
+      }
+    }
+    return { bytes, count, layers: withAtt.length };
+  }
+
+  // ================= TAB: LARGE, UNDERUSED ITEMS =================
+  const SUSPECT_COUNT = 25, SUSPECT_POOL = 100;
+  function sProgress(frac, text) {
+    $("#sBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+    if (text !== undefined) $("#sStatus").textContent = text;
+  }
+  const isHostedFeatureLayer = (it) => { const c = classifyItem(it); return !!(c && c.type === "feature"); };
+
+  // Usage (requests) for a hosted feature layer over the last `days` days, as on the item's Usage tab.
+  async function featureUsage(it, days, period) {
+    const m = String(it.url || "").match(/\/services\/([^/]+)\/FeatureServer/i);
+    if (!m) return null;
+    const end = Date.now(), start = end - days * 86400000;
+    const r = await api(`/portals/${encodeURIComponent(state.self.id)}/usage`, {
+      startTime: start, endTime: end, period, vars: "num", groupby: "name",
+      etype: "svcusg", stype: "features", name: decodeURIComponent(m[1])
+    }, { method: "GET" });
+    let total = 0;
+    for (const d of (r.data || [])) for (const p of (d.num || [])) total += Number(p[1]) || 0;
+    return total;
+  }
+
+  $("#sScanBtn").addEventListener("click", runSuspectScan);
+  $("#sCancelBtn").addEventListener("click", () => { state.cancel = true; sProgress(0, "Cancelling…"); });
+
+  async function runSuspectScan() {
+    if (state.busy) return;
+    setBusy(true);
+    state.cancel = false;
+    $("#sCancelBtn").classList.remove("hidden");
+    const errors = [];
+    logEvent("INFO", "=== Large, underused items scan started ===");
+    try {
+      const orgId = state.self.id;
+
+      // 1. Every hosted feature layer in the org
+      sProgress(0.02, "Finding hosted feature layers…");
+      const mine = !isAdminUser();
+      const q = (mine ? `owner:"${String(state.user.username).replace(/"/g, '\\"')}" AND ` : (orgId ? `orgid:${orgId} AND ` : "")) + `type:"Feature Service" AND typekeywords:"Hosted Service"`;
+      logEvent("INFO", `Large, underused items: scope ${mine ? "my layers (" + state.user.username + ")" : "whole organization"}`);
+      const { items: found, total } = await searchAll(q, (n, t) => sProgress(0.02 + 0.18 * n / Math.max(1, t), `Finding hosted feature layers… ${fmtInt(n)} of ${fmtInt(t)}`));
+      if (state.cancel) return sProgress(0, "Scan cancelled.");
+      if (total > 10000) errors.push({ title: "Search limit", msg: `${fmtInt(total)} matches; ArcGIS search returns at most 10,000.` });
+      const layers = found.filter(it => isHostedFeatureLayer(it) && (!mine || it.owner === state.user.username));
+      logEvent("INFO", `Hosted feature layers found: ${layers.length} (of ${found.length} hosted feature services incl. views/location sharing)`);
+      if (!layers.length) { sProgress(1, mine ? "You don't own any hosted feature layers." : "No hosted feature layers found."); return; }
+
+      // 2. Real sizes from item details (search reports size -1)
+      let done = 0;
+      await pool(layers, 8, async (it) => {
+        try {
+          const d = await api(`/content/items/${it.id}`, {}, { method: "GET" });
+          it.size = typeof d.size === "number" ? d.size : -1;
+          it.searchViews = it.numViews;
+          it.numViews = typeof d.numViews === "number" ? d.numViews : null;   // the item's own numViews
+          it.viewsReadAt = Date.now();
+          if (it.numViews !== it.searchViews) logEvent("DETAIL", `numViews · "${it.title}" (${it.id}): item ${it.numViews ?? "missing"} vs search index ${it.searchViews ?? "missing"}; using the item's value`);
+          if (d.url) it.url = d.url;
+          it.protected = !!d.protected;
+        } catch (e) { if (e.auth) throw e; errors.push({ title: it.title || it.id, msg: "Couldn't read size: " + e.message }); }
+        done++;
+        if (done % 10 === 0 || done === layers.length) sProgress(0.2 + 0.3 * done / layers.length, `Reading layer sizes… ${fmtInt(done)} of ${fmtInt(layers.length)}`);
+      });
+      if (state.cancel) return sProgress(0, "Scan cancelled.");
+
+      // 3. The largest layers get attachments + usage checks
+      const pool100 = layers.filter(it => it.size > 0).sort((a, b) => b.size - a.size).slice(0, SUSPECT_POOL);
+      const known = state.attachById || new Map();
+      done = 0;
+      await pool(pool100, 4, async (it) => {
+        try {
+          if (known.has(it.id)) it.attach = known.get(it.id);
+          else { const a = await measureAttachments(it); it.attach = a.bytes; }
+        } catch (e) { if (e.auth) throw e; it.attach = 0; errors.push({ title: it.title, msg: "Couldn't measure attachments: " + e.message }); }
+        try { it.v12 = await featureUsage(it, 365, "1w"); } catch (e) { if (e.auth) throw e; it.v12 = null; it.usageErr = e.message; }
+        try { it.v30 = await featureUsage(it, 30, "1d"); } catch (e) { if (e.auth) throw e; it.v30 = null; it.usageErr = it.usageErr || e.message; }
+        done++;
+        sProgress(0.5 + 0.48 * done / pool100.length, `Checking attachments and usage… layer ${fmtInt(done)} of ${fmtInt(pool100.length)}`);
+      });
+      if (state.cancel) return sProgress(0, "Scan cancelled.");
+      const usageFails = pool100.filter(it => it.v12 == null).length;
+      if (usageFails) errors.push({ title: "Usage", msg: `Couldn't read 12-month usage for ${fmtInt(usageFails)} layer(s); lifetime views were used to rank them. ${pool100.find(it => it.usageErr)?.usageErr || ""}` });
+
+      // 4. Credits and ranking
+      for (const it of pool100) {
+        const a = it.attach || 0;
+        it.featBytes = a <= it.size ? it.size - a : it.size;
+        it.credits = catCredits("feature", it.featBytes) + catCredits("file", a);
+        const uses = it.v12 != null ? it.v12 : (it.numViews ?? it.searchViews ?? 0);
+        it.perView = it.credits / (uses + 1);
+      }
+      const ranked = pool100.slice().sort((a, b) => b.perView - a.perView).slice(0, SUSPECT_COUNT);
+      ranked.forEach((it, i) => {
+        it.rank = i + 1;
+        logEvent("DETAIL", `Large, underused #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · numViews ${it.numViews ?? "n/a"}`);
+      });
+      state.suspects = ranked;
+      state.sAll = pool100;
+      state.sLayerCount = layers.length;
+      state.sErrors = errors;
+      state.sSortKey = "rank"; state.sSortDir = 1;
+      logEvent("SUMMARY", `Large, underused items: ${layers.length} hosted feature layers · ${pool100.length} largest checked · top ${ranked.length} cost ${fmtCred(ranked.reduce((a, it) => a + it.credits, 0))} credits/yr · usage unavailable for ${usageFails}`);
+      sProgress(1, `Done. Checked the ${fmtInt(pool100.length)} largest of ${fmtInt(layers.length)} hosted feature layers.`);
+      renderSuspects();
+    } catch (e) {
+      logEvent("ERROR", "Large, underused items scan stopped: " + e.message);
+      if (e.auth) {
+        sProgress(0, "");
+        showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
+      } else sProgress(0, "Scan failed: " + e.message);
+    } finally {
+      setBusy(false);
+      $("#sCancelBtn").classList.add("hidden");
+    }
+  }
+
+  const S_COLS = [
+    { key: "rank", label: "#", num: true },
+    { key: "title", label: "Feature layer" },
+    { key: "size", label: "Size (MB)", num: true },
+    { key: "credits", label: "Est. credits / yr", num: true },
+    { key: "v12", label: "Views (12 months)", num: true },
+    { key: "v30", label: "Views (30 days)", num: true },
+    { key: "numViews", label: "Lifetime views (numViews)", num: true },
+    { key: "perView", label: "Credits per view", num: true },
+    { key: "modified", label: "Last modified" },
+    { key: "link", label: "", nosort: true }
+  ];
+
+  function renderSuspects() {
+    const rows = state.suspects || [];
+    const cr = rows.reduce((a, it) => a + it.credits, 0);
+    const bytes = rows.reduce((a, it) => a + it.size, 0);
+    const idle = rows.filter(it => it.v12 === 0).length;
+    const quiet = rows.filter(it => it.v30 === 0).length;
+    $("#sResultsWrap").classList.remove("hidden");
+    $("#sTiles").innerHTML = [
+      ["Top 25 cost", fmtCred(cr), `credits / yr · ${fmtSize(bytes)}`],
+      ["No views in 12 months", fmtInt(idle), `of the top ${rows.length} items`],
+      ["No views in 30 days", fmtInt(quiet), `of the top ${rows.length} items`],
+      ["Layers checked", fmtInt((state.sAll || []).length), `largest of ${fmtInt(state.sLayerCount || 0)} hosted feature layers`]
+    ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+    renderSuspectTable();
+    const errs = state.sErrors || [];
+    $("#sErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
+      errs.slice(0, 200).map(e => `<li><b>${esc(e.title)}</b>: ${esc(e.msg)}</li>`).join("")}</ul></details>` : "";
+  }
+
+  function renderSuspectTable() {
+    const k = state.sSortKey, d = state.sSortDir;
+    $("#sThead").innerHTML = "<tr>" + S_COLS.map(c =>
+      `<th class="${c.num ? "num" : ""}" data-key="${c.key}" ${c.nosort ? 'style="cursor:default"' : ""}>${c.label}<span class="arrow">${c.key === k ? (d < 0 ? "▼" : "▲") : ""}</span></th>`).join("") + "</tr>";
+    const rows = (state.suspects || []).slice().sort((a, b) => {
+      const x = a[k], y = b[k];
+      if (typeof x === "string" || typeof y === "string") return d * String(x || "").localeCompare(String(y || ""));
+      return d * ((x ?? -1) - (y ?? -1));
+    });
+    const views = (v) => v == null ? '<span style="color:var(--muted)" title="Usage couldn\'t be read for this layer">n/a</span>' : fmtInt(v);
+    $("#sTbody").innerHTML = rows.map(it => `<tr>
+      <td class="rank num">${it.rank}</td>
+      <td class="title"><a href="${esc(itemUrl(it.id))}" target="_blank" rel="noopener">${esc(it.title || "(untitled)")}</a>
+        <div class="meta">${esc(it.owner)} ${it.access ? `<span class="pill ${it.access === "public" ? "public" : ""}">${esc(it.access)}</span>` : ""}${it.protected ? '<span class="pill">delete protected</span>' : ""}${it.v12 === 0 ? '<span class="pill err">no views in 12 months</span>' : ""}</div></td>
+      <td class="num">${fmtMB(it.size)}${it.attach ? `<div class="meta" style="font-size:11px;color:var(--muted)">attachments ${fmtMB(it.attach)}</div>` : ""}</td>
+      <td class="num" style="font-weight:700">${fmtCred(it.credits)}</td>
+      <td class="num">${views(it.v12)}</td>
+      <td class="num">${views(it.v30)}</td>
+      <td class="num" title="${it.numViews == null ? "The item didn't report numViews" : `The item's numViews, read ${new Date(it.viewsReadAt).toLocaleTimeString()}. Opening the item page adds to this count.`}">${it.numViews == null ? '<span style="color:var(--muted)">n/a</span>' : fmtInt(it.numViews)}</td>
+      <td class="num">${fmtCred(it.perView)}</td>
+      <td style="white-space:nowrap">${fmtDate(it.modified)}</td>
+      <td><a class="small" href="${esc(itemUrl(it.id))}" target="_blank" rel="noopener">Item details</a></td>
+    </tr>`).join("") || `<tr><td colspan="${S_COLS.length}" style="color:var(--muted);padding:18px">No hosted feature layers found.</td></tr>`;
+  }
+  $("#sThead").addEventListener("click", (e) => {
+    const th = e.target.closest("th[data-key]"); if (!th) return;
+    const c = S_COLS.find(c => c.key === th.dataset.key);
+    if (!c || c.nosort) return;
+    if (state.sSortKey === c.key) state.sSortDir *= -1;
+    else { state.sSortKey = c.key; state.sSortDir = ["rank", "title", "modified"].includes(c.key) ? 1 : -1; }
+    renderSuspectTable();
+  });
+  $("#sCsvBtn").addEventListener("click", () => {
+    const head = ["Rank", "Title", "Owner", "Sharing", "Delete protected", "Size (MB)", "Attachments (MB)", "Feature data (MB)", "Est. credits per year",
+      "Views last 12 months", "Views last 30 days", "Lifetime views (numViews)", "Credits per view", "Last modified", "Item details URL", "Item ID"];
+    const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [head.join(",")];
+    for (const it of (state.suspects || []).slice().sort((a, b) => a.rank - b.rank)) {
+      lines.push([it.rank, it.title, it.owner, it.access, it.protected ? "yes" : "no", (it.size / MB).toFixed(2), ((it.attach || 0) / MB).toFixed(2), (it.featBytes / MB).toFixed(2),
+        it.credits.toFixed(2), it.v12 ?? "n/a", it.v30 ?? "n/a", it.numViews ?? "n/a", it.perView.toFixed(2), isoDate(it.modified), itemUrl(it.id), it.id].map(q).join(","));
+    }
+    download(`large-underused-items-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
+  });
+
+  // ---------- startup ----------
+  (async () => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem("agoCleanup.session") || "null");
+      if (s && s.token && (!s.expires || s.expires > Date.now() + 60000)) await onToken(s.portal, s.token, s.expires);
+    } catch (e) { try { sessionStorage.removeItem("agoCleanup.session"); } catch (_) {} }
+  })();
+})();
+</script>
+</body>
+</html>
