@@ -192,6 +192,30 @@
   #uTable td.tot{font-weight:700}
   .tile .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
   #logPre{background:#0f1720;color:#d6e2ee;font:12px/1.5 var(--mono);padding:12px 14px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:8px 0}
+  .unc-link{color:var(--accent);font-weight:600;text-decoration:none;border-bottom:1px dashed var(--accent)}
+  .unc-link:hover{border-bottom-style:solid}
+  .unc-i{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:10px;font-weight:800;margin-left:5px;vertical-align:1px}
+  #infoDlg{border:none;border-radius:12px;padding:0;width:min(860px,94vw);max-height:88vh;box-shadow:0 20px 60px rgba(10,20,30,.35);color:var(--ink)}
+  #infoDlg::backdrop{background:rgba(15,23,32,.45)}
+  #infoDlg .dlg-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff}
+  #infoDlg h3{margin:0;font-size:17px;flex:1}
+  #infoDlg .dlg-x{background:transparent;border:none;color:var(--muted);font-size:24px;line-height:1;padding:2px 8px}
+  #infoDlg .dlg-x:hover{color:var(--ink)}
+  #infoDlg .dlg-body{padding:16px 20px 20px;overflow:auto;max-height:calc(88vh - 60px);font-size:14px}
+  #infoDlg h4{margin:18px 0 8px;font-size:14px}
+  #infoDlg p{margin:0 0 10px}
+  #infoDlg ul{margin:0 0 10px;padding-left:20px} #infoDlg li{margin:3px 0}
+  .calc{border:1px solid var(--line);border-radius:8px;overflow:hidden;font-variant-numeric:tabular-nums}
+  .calc > div{display:grid;grid-template-columns:28px 1fr 130px;gap:8px;padding:7px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+  .calc > div:last-child{border-bottom:none}
+  .calc .op{color:var(--muted);font-weight:700;text-align:center}
+  .calc .amt{text-align:right}
+  .calc .res{background:#f1f3f6;font-weight:700}
+  .calc .sub{color:var(--muted);font-size:12.5px;display:block}
+  .dlg-items{width:100%;border-collapse:collapse;font-size:12.5px;min-width:0}
+  .dlg-items th,.dlg-items td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+  .dlg-items th{position:static;background:#f6f8fa;cursor:default}
+  .dlg-items td.num,.dlg-items th.num{text-align:right}
   footer.credit{text-align:left;margin-top:28px;font-size:13px}
   footer.credit a{color:var(--accent);font-weight:600;text-decoration:none}
   footer.credit a:hover{text-decoration:underline}
@@ -548,6 +572,11 @@
     <pre id="logPre" class="hidden"></pre>
     <p class="hint">Records every request (never your token or password), what came back, and timing. It includes usernames and item IDs from your org, so share it only with people you trust.</p>
   </section>
+
+  <dialog id="infoDlg" aria-labelledby="dlgTitle">
+    <div class="dlg-head"><h3 id="dlgTitle"></h3><button class="dlg-x" id="dlgClose" aria-label="Close">×</button></div>
+    <div class="dlg-body" id="dlgBody"></div>
+  </dialog>
 
   <footer class="credit">Designed by <a href="https://tbaker.com" target="_blank" rel="noopener">Tom Baker</a></footer>
 </main>
@@ -1434,7 +1463,8 @@
       username: m.username, fullName: m.fullName || "", role: m.role || "",
       reported: typeof m.storageUsage === "number" ? m.storageUsage : null,
       items: 0, dyn: 0, images: 0, imgFees: 0, feature: 0, imagery: 0, file: 0,
-      story: 0, attach: 0, tile: 0, scene: 0, vtile: 0, otherFiles: 0, skippedBytes: 0
+      story: 0, attach: 0, tile: 0, scene: 0, vtile: 0, otherFiles: 0, skippedBytes: 0,
+      counted: []     // every item/part added up for this member: { id, title, type, as, bytes, unknown }
     });
     const byUser = new Map();
     for (const m of members) byUser.set(m.username, blank(m));
@@ -1445,15 +1475,22 @@
       if (!u) { u = blank({ username: it.owner }); byUser.set(it.owner, u); }
       const c = classifyItem(it);
       const size = it.size > 0 ? it.size : 0;
-      if (!c) { typeCount.skipped++; u.skippedBytes += size; continue; }
+      const add = (as, bytes) => u.counted.push({ id: it.id, title: it.title || "(untitled)", type: it.type, as, bytes, unknown: !(it.size >= 0) });
+      if (!c) {
+        typeCount.skipped++; u.skippedBytes += size;
+        add((it.typeKeywords || []).some(k => /view service/i.test(k)) ? "Not billed: feature layer view" : "Not billed: location sharing layer", size);
+        continue;
+      }
       if (!(it.size >= 0)) unknown++;
       typeCount[c.type]++;
       u.items++;
       if (c.part === "story") {
         const b = measured.has(it.id) ? measured.get(it.id) : size;
         u.story += b; u.file += b;
+        add("File storage: StoryMap", b);
       } else if (c.type === "file") {
         u[c.part] += size; u.file += size;                   // otherFiles, tile, scene, vtile
+        add({ tile: "File storage: tile layer", scene: "File storage: scene layer", vtile: "File storage: vector tile layer" }[c.part] || "File storage", size);
       } else if (c.type === "feature") {
         // The reported layer size includes its attachments; attachments are file storage, so move them out.
         const a = attach.get(it.id) || 0;
@@ -1461,8 +1498,11 @@
         if (a > size) logEvent("WARN", `"${it.title}" (${it.id}): attachments ${fmtMB(a)} MB exceed reported size ${fmtMB(size)} MB; size used as feature storage unchanged`);
         u.feature += feat;
         u.attach += a; u.file += a;
+        add("Feature storage", feat);
+        if (a) add("File storage: attachments", a);
       } else if (c.type === "imagery") {
         u.imagery += size;
+        add("Imagery storage", size);
         if (isDynamicImagery(it)) {
           const f = imgFees.get(it.id) || { n: 1, annual: 10 * 365 };
           u.dyn++; u.images += f.n; u.imgFees += f.annual;
@@ -1615,7 +1655,10 @@
       }
       if (c.key === "other") title = u.reported == null ? "ArcGIS didn't report a storage total for this member"
         : `ArcGIS reports ${fmtMB(u.reported)} MB for this member; ${fmtMB(u.reported - u.other)} MB was placed in a storage type`;
-      return `<td class="num sep"${title ? ` title="${esc(title)}"` : ""}>${fmtMB(u[c.key])}${extra}</td>` +
+      const val = c.key === "other" && u.other > 0
+        ? `<a href="#" class="unc-link" data-user="${esc(u.username)}" title="What is this? See how it's calculated">${fmtMB(u.other)}<span class="unc-i" aria-hidden="true">?</span></a>`
+        : fmtMB(u[c.key]);
+      return `<td class="num sep"${title && !(c.key === "other" && u.other > 0) ? ` title="${esc(title)}"` : ""}>${val}${extra}</td>` +
         `<td class="num"${c.key === "imagery" && u.dyn ? ` title="${esc(`Size ${fmtCred(u.imagerySizeCr)} + per-image fees ${fmtCred(u.imgFees)} for ${u.dyn} dynamic layer(s), ${fmtInt(u.images)} image(s)`)}"` : ""}>${fmtCred(u[c.key + "Cr"])}${c.key === "imagery" && u.dyn ? `<div class="meta">size ${fmtCred(u.imagerySizeCr)} · image fees ${fmtCred(u.imgFees)}</div>` : ""}</td>`;
     };
     $("#uTbody").innerHTML = rows.map(u => {
@@ -1628,6 +1671,67 @@
       </tr>`;
     }).join("") || `<tr><td colspan="${3 + CATS.length * 2}" style="color:var(--muted);padding:18px">No members match.</td></tr>`;
   }
+
+  // ---- "Unclassified" explanation window ----
+  function openDialog(title, html) {
+    $("#dlgTitle").textContent = title;
+    $("#dlgBody").innerHTML = html;
+    const d = $("#infoDlg");
+    if (typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", "");
+    $("#dlgBody").scrollTop = 0;
+  }
+  function closeDialog() { const d = $("#infoDlg"); if (d.close) d.close(); else d.removeAttribute("open"); }
+  $("#dlgClose").addEventListener("click", closeDialog);
+  $("#infoDlg").addEventListener("click", (e) => { if (e.target === $("#infoDlg")) closeDialog(); });   // click outside closes
+
+  function explainUnclassified(u) {
+    const sumOf = (pred) => u.counted.filter(pred).reduce((a, r) => a + r.bytes, 0);
+    const cnt = (pred) => u.counted.filter(pred).length;
+    const isFeat = r => r.as === "Feature storage", isImg = r => r.as === "Imagery storage", isAtt = r => r.as === "File storage: attachments";
+    const isFile = r => r.as.startsWith("File storage") && !isAtt(r), isSkip = r => r.as.startsWith("Not billed");
+    const lines = [
+      ["Feature storage", `${cnt(isFeat)} hosted feature layer(s), attachments removed`, sumOf(isFeat)],
+      ["Attachments", "photos and files attached to those layers", sumOf(isAtt)],
+      ["Imagery storage", `${cnt(isImg)} hosted imagery layer(s)`, sumOf(isImg)],
+      ["File storage", `${cnt(isFile)} other item(s): StoryMaps, files, maps, apps, tile and scene layers…`, sumOf(isFile)],
+      ["Views and location sharing layers", `${cnt(isSkip)} item(s) ArcGIS may count but doesn't bill as feature storage`, sumOf(isSkip)]
+    ];
+    const placed = lines.reduce((a, l) => a + l[2], 0);
+    const unknownN = u.counted.filter(r => r.unknown).length;
+    const items = u.counted.slice().sort((a, b) => b.bytes - a.bytes);
+    const MAXROWS = 300;
+    const calc = `<div class="calc">
+        <div><span class="op"></span><span>ArcGIS-reported storage for ${esc(u.fullName || u.username)}<div class="sub">the member's storage usage, as ArcGIS Online reports it</div></span><span class="amt"><b>${fmtMB(u.reported)} MB</b></span></div>
+        ${lines.map(l => `<div><span class="op">−</span><span>${esc(l[0])}<div class="sub">${esc(l[1])}</div></span><span class="amt">${fmtMB(l[2])} MB</span></div>`).join("")}
+        <div class="res"><span class="op">=</span><span>Unclassified</span><span class="amt">${fmtMB(u.other)} MB</span></div>
+      </div>
+      <p class="hint" style="margin:8px 0 0">Items counted: ${fmtMB(placed)} MB in total. Unclassified is priced as file storage (1.2 credits per GB per month): about ${fmtCred(u.otherCr)} credits over the next 12 months.</p>`;
+    const table = `<table class="dlg-items"><thead><tr><th>Item</th><th>Type</th><th>Counted as</th><th class="num">MB</th></tr></thead><tbody>${
+      items.slice(0, MAXROWS).map(r => `<tr><td><a href="${esc(itemUrl(r.id))}" target="_blank" rel="noopener">${esc(r.title)}</a></td><td>${esc(r.type)}</td><td>${esc(r.as)}</td><td class="num">${r.unknown ? '<span title="Size not available; counted as 0">n/a</span>' : fmtMB(r.bytes)}</td></tr>`).join("")
+    }</tbody></table>${items.length > MAXROWS ? `<p class="hint">Showing the ${MAXROWS} largest of ${fmtInt(items.length)} entries. The CSV export and troubleshooting log have the totals.</p>` : ""}`;
+    openDialog(`Unclassified storage: ${u.fullName || u.username}`, `
+      <p><b>Unclassified</b> is storage that ArcGIS Online counts against this member but that the app couldn't match to any of their items.</p>
+      <p>ArcGIS Online keeps a running storage total for every member. The app adds up the size of each item the member owns and sorts it into Esri's storage types: feature, imagery and file storage. Whatever is left over between ArcGIS's total and that sum is shown as Unclassified.</p>
+      <h4>How ${fmtMB(u.other)} MB was calculated</h4>
+      ${calc}
+      <h4>What it can include</h4>
+      <ul>
+        <li><b>Recently deleted items</b> that may still be held in the member's recycle bin.</li>
+        <li><b>Timing:</b> ArcGIS updates member storage totals periodically, so items added, resized or deleted recently can leave a temporary difference.</li>
+        <li><b>Data that isn't part of an item's reported size</b>, such as some caches, exports or offline data.</li>
+        ${unknownN ? `<li><b>${unknownN} item(s) whose size couldn't be read</b> and were counted as 0 (marked n/a below).</li>` : ""}
+      </ul>
+      <p>If this number is large, check the member's content and recycle bin in ArcGIS Online, or send the troubleshooting log for a closer look.</p>
+      <h4>Items added together (${fmtInt(items.length)})</h4>
+      ${items.length ? table : '<p class="hint">This member owns no items, so all of their reported storage is Unclassified.</p>'}`);
+    logEvent("INFO", `Opened Unclassified explanation for ${u.username}: reported ${fmtMB(u.reported)} MB − counted ${fmtMB(placed)} MB = ${fmtMB(u.other)} MB`);
+  }
+  $("#uTbody").addEventListener("click", (e) => {
+    const a = e.target.closest(".unc-link"); if (!a) return;
+    e.preventDefault();
+    const u = (state.users || []).find(x => x.username === a.dataset.user);
+    if (u) explainUnclassified(u);
+  });
 
   $("#uThead").addEventListener("click", (e) => {
     const th = e.target.closest("th[data-key]"); if (!th) return;
