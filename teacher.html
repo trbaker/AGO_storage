@@ -3,12 +3,13 @@
   ArcGIS Online Storage Cleanup - For Teachers
   Version history (the version goes up by .1 with every new download):
     v. 0.1  2026-11-13  Tabs: Overview, Recycle bin, Underused items, School year 2027-2028. Username/password sign-in.
+    v. 0.2  2026-11-13  Added the Inactive users tab (from the audit app) as tab 4.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ArcGIS Online Storage Cleanup - For Teachers v. 0.1</title>
+<title>ArcGIS Online Storage Cleanup - For Teachers v. 0.2</title>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-HZWNB3WHS6"></script>
 <script>
@@ -253,7 +254,7 @@
 <body>
 <header>
   <div>
-    <h1>ArcGIS Online Storage Cleanup - For Teachers <span class="ver" id="appVersion">v. 0.1</span></h1>
+    <h1>ArcGIS Online Storage Cleanup - For Teachers <span class="ver" id="appVersion">v. 0.2</span></h1>
     <div class="sub">Credit use and storage cleanup for your school's ArcGIS Online organization</div>
   </div>
   <div class="spacer"></div>
@@ -286,6 +287,7 @@
     <button class="active" data-apptab="overview" role="tab">Overview</button>
     <button data-apptab="recycle" role="tab">Recycle bin</button>
     <button data-apptab="suspects" role="tab">Underused items</button>
+    <button data-apptab="inactive" role="tab">Inactive users</button>
     <button data-apptab="model" role="tab">School year 2027-2028</button>
   </nav>
 
@@ -421,6 +423,47 @@
   </section>
   </div>
 
+  <!-- ================= TAB: INACTIVE USERS ================= -->
+  <div class="tabpanel hidden" id="tab-inactive">
+  <section class="card">
+    <h2>Inactive users</h2>
+    <p style="margin:0 0 6px">Members who haven't signed in to ArcGIS Online for more than a year, plus members created more than a year ago who have never signed in, with an estimate of the storage credits their content will cost over the next 12 months.</p>
+    <p class="hint" style="margin:0">Storage credits use Esri's feature, imagery and file storage types, count attachments as file storage, and include per-image fees for dynamic imagery layers.</p>
+    <p class="hint" style="margin:6px 0 0" id="iAdminNote"></p>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button id="iScanBtn">Find inactive users</button>
+      <button class="secondary hidden" id="iCancelBtn">Cancel</button>
+    </div>
+    <div class="progress"><div id="iBar"></div></div>
+    <div class="status" id="iStatus"></div>
+  </section>
+
+  <section class="hidden" id="iResultsWrap">
+    <div id="iSummary" style="margin-bottom:18px"></div>
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0" id="iTitle">Inactive users</h2>
+        <div class="spacer"></div>
+        <input type="text" id="iFilterIn" placeholder="Filter by name or username…">
+        <button class="secondary" id="iCsvBtn">Export (CSV)</button>
+      </div>
+      <div class="tablewrap">
+        <table id="iTable">
+          <thead id="iThead"></thead>
+          <tbody id="iTbody"></tbody>
+        </table>
+      </div>
+      <div id="iErrorsBox"></div>
+      <footer>
+        <b>Last sign-in</b> comes from each member's account in ArcGIS Online. "Never" means the account has never been used to sign in.
+        <b>Storage (MB, now)</b> is what the member's content uses today, and <b>Credits, next 12 months</b> estimates what it will cost if it stays the same size.
+        Rates: feature storage 2.4 credits per 10 MB per month; file and imagery storage 1.2 credits per GB per month; dynamic imagery layers also have a daily per-image fee.
+        Before removing an account, transfer or review its content: other maps, apps and members may depend on it. Inactive accounts may also still use a paid user type.
+      </footer>
+    </section>
+  </section>
+  </div>
+
   <!-- ================= TAB: SCHOOL YEAR 2027-2028 ================= -->
   <div class="tabpanel hidden" id="tab-model">
   <section class="card" id="mEmpty">
@@ -525,7 +568,7 @@
   class ApiError extends Error { constructor(msg, code) { super(msg); this.code = code; } }
 
   // ---------- troubleshooting log ----------
-  const APP_VERSION = "0.1 (2026-11-13)";
+  const APP_VERSION = "0.2 (2026-11-13)";
   const LOG = { entries: [], started: Date.now(), dropped: 0, reqs: 0, errs: 0 };
   const LOG_MAX = 5000, LOG_KEEP_HEAD = 400;
   let logRenderPending = false;
@@ -659,6 +702,7 @@
     $("#mModelCard").classList.add("hidden"); $("#mEmpty").classList.remove("hidden");
     oProgress(0, "");
     state.suspects = []; state.attachById = null; $("#sResultsWrap").classList.add("hidden"); sProgress(0, "");
+    state.inactive = []; $("#iResultsWrap").classList.add("hidden"); iProgress(0, "");
     state.rb = null; rbProgress(0, ""); showMsg($("#rbResult"), "", ""); showMsg($("#rbToggleMsg"), "", "");
     $("#rbTiles").classList.add("hidden"); $("#rbTableWrap").classList.add("hidden"); $("#rbEmptyBtn").disabled = true;
     $("#signinCard").classList.remove("hidden");
@@ -674,6 +718,7 @@
     $("#rbRefreshBtn").disabled = on;
     $("#rbEmptyBtn").disabled = on || !(state.rb && state.rb.length);
     $("#sScanBtn").disabled = on;
+    $("#iScanBtn").disabled = on;
     if (state.self) renderRecycleStatus();
   }
   const DAY = 86400000;
@@ -737,7 +782,7 @@
     if (name === "overview" && state.ov) drawBalanceChart($("#oChart"), state.ov);
   }
   document.querySelectorAll(".apptabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.apptab)));
-  try { const t = sessionStorage.getItem("agoCleanup.tab"); if (["overview", "recycle", "suspects", "model"].includes(t)) showTab(t); } catch (e) {}
+  try { const t = sessionStorage.getItem("agoCleanup.tab"); if (["overview", "recycle", "suspects", "inactive", "model"].includes(t)) showTab(t); } catch (e) {}
 
   // ================= TAB: OVERVIEW =================
   const TERM_START = Date.UTC(2025, 7, 1);                 // Aug 1, 2025 (credit reset)
@@ -1124,6 +1169,7 @@
       : "Deleted items are removed right away. Turning it on keeps them for 14 days so they can be restored.";
     const scope = admin ? "Whole organization (administrator)" : `Your items only (${esc(state.user ? state.user.username : "")})`;
     $("#rbScope").innerHTML = scope;
+    $("#iAdminNote").innerHTML = admin ? "" : "<b>Needs an administrator account.</b> Only administrators can see when members last signed in.";
     $("#sScope").textContent = admin ? "every hosted feature layer in the organization (administrator)" : `your own hosted feature layers (${state.user ? state.user.username : ""})`;
   }
 
@@ -1640,6 +1686,454 @@
         it.credits.toFixed(2), it.v12 ?? "n/a", it.v30 ?? "n/a", it.numViews ?? "n/a", it.perView.toFixed(2), isoDate(it.modified), itemUrl(it.id), it.id].map(q).join(","));
     }
     download(`underused-items-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
+  });
+
+  // ---------- storage measurement (from the audit app) ----------
+  const CATS = [
+    { key: "feature", label: "Feature storage", cls: "c-feat" },
+    { key: "imagery", label: "Imagery storage", cls: "c-img" },
+    { key: "file",    label: "File storage",    cls: "c-file" },
+    { key: "other",   label: "Unclassified",    cls: "c-other" }
+  ];
+  function isDynamicImagery(it) {
+    const kw = (it.typeKeywords || []).map(k => String(k).toLowerCase());
+    if (kw.some(k => /dynamic imagery/.test(k))) return true;
+    if (kw.some(k => /tiled imagery/.test(k))) return false;
+    return !/tiledimageservices/i.test(String(it.url || ""));
+  }
+  // Esri: dynamic imagery has a daily per-image charge by number of images (per layer).
+  function imageFeePerDay(n) {
+    if (n <= 10) return 10;
+    if (n <= 100) return 20;
+    if (n <= 1000) return 40;
+    if (n <= 10000) return 80;
+    if (n <= 100000) return 160;
+    return 320;
+  }
+  // Number of images in a dynamic imagery layer: multidimensional slices, else catalog item count, else 1.
+  async function countImages(it) {
+    const base = String(it.url || "").replace(/\/+$/, "");
+    if (!/\/ImageServer$/i.test(base)) return { n: 1, how: "no ImageServer URL; assumed 1 image" };
+    try {
+      const md = await api(`${base}/multiDimensionalInfo`, {}, { method: "GET" });
+      const vars = (md.multidimensionalInfo && md.multidimensionalInfo.variables) || [];
+      if (vars.length) {
+        const n = vars.reduce((a, v) => a + (v.dimensions || []).reduce((p, d) => p * Math.max(1, (d.values || []).length || 1), 1), 0);
+        if (n > 0) return { n, how: `${vars.length} multidimensional variable(s)` };
+      }
+    } catch (e) { if (e.auth) throw e; }
+    try {
+      const r = await api(`${base}/query`, { where: "1=1", returnCountOnly: true }, { method: "GET" });
+      if (typeof r.count === "number" && r.count > 0) return { n: r.count, how: "catalog item count" };
+    } catch (e) { if (e.auth) throw e; }
+    return { n: 1, how: "single image (count not available)" };
+  }
+  async function listOrgUsers() {
+    const out = [];
+    let start = 1, guard = 0;
+    try {
+      do {
+        const r = await api("/portals/self/users", { start, num: 100 });
+        out.push(...(r.users || []));
+        start = r.nextStart;
+      } while (start && start > 0 && !state.cancel && ++guard < 1000);
+      return out;
+    } catch (e) {
+      if (e.auth) throw e;
+    }
+    out.length = 0; start = 1; guard = 0;
+    try {
+      do {
+        const r = await api("/community/users", { q: `orgid:${state.self.id}`, start, num: 100 });
+        out.push(...(r.results || []));
+        start = r.nextStart;
+      } while (start && start > 0 && !state.cancel && ++guard < 1000);
+    } catch (e) { if (e.auth) throw e; }
+    return out;
+  }
+  async function listUserContent(username) {
+    const base = `/content/users/${encodeURIComponent(username)}`;
+    const out = [];
+    const page = async (path) => {
+      let start = 1, guard = 0, first = null;
+      do {
+        const r = await api(path, { start, num: 100 }, { method: "GET" });
+        if (!first) first = r;
+        out.push(...(r.items || []));
+        start = r.nextStart;
+      } while (start && start > 0 && !state.cancel && ++guard < 500);
+      return first || {};
+    };
+    const root = await page(base);
+    for (const f of (root.folders || [])) { if (state.cancel) break; await page(`${base}/${encodeURIComponent(f.id)}`); }
+    return out;
+  }
+  // Measures storage for a list of members: content, sizes, attachments, image fees, Esri storage types and credits.
+  // Shared by "Storage by user" and "Inactive users". Returns null if cancelled.
+  async function measureMembers(members, { doAttach = true, errors = [], prog = () => {}, label = "Storage" } = {}) {
+    // 2. Each member's content (root + folders). Search can't be used for sizes: it always reports size -1.
+    const items = new Map();
+    let done = 0;
+    await pool(members, 4, async (m) => {
+      try {
+        const mine = await listUserContent(m.username);
+        mine.forEach(it => items.set(it.id, it));
+      } catch (e) {
+        if (e.auth) throw e;
+        errors.push({ title: m.username, msg: "Couldn't list this member's content: " + e.message });
+      }
+      done++;
+      prog(0.05 + 0.45 * done / members.length, `Listing content… member ${fmtInt(done)} of ${fmtInt(members.length)} (${fmtInt(items.size)} items)`);
+    });
+    if (state.cancel) return null;
+
+    // 3. Item details for anything without a usable size
+    const needSize = [...items.values()].filter(it => !(typeof it.size === "number" && it.size >= 0));
+    logEvent("INFO", `Items listed: ${items.size}; ${needSize.length} have no size in the listing and need item details`);
+    done = 0;
+    await pool(needSize, 8, async (it) => {
+      try {
+        const det = await api(`/content/items/${it.id}`, {}, { method: "GET" });
+        it.size = typeof det.size === "number" ? det.size : -1;
+        if (!it.typeKeywords && det.typeKeywords) it.typeKeywords = det.typeKeywords;
+        if (!it.url && det.url) it.url = det.url;
+      } catch (e) {
+        if (e.auth) throw e;
+        errors.push({ title: it.title || it.id, msg: `Couldn't read size (owner ${it.owner}): ${e.message}` });
+      }
+      done++;
+      if (done % 10 === 0 || done === needSize.length)
+        prog(0.5 + 0.25 * done / Math.max(1, needSize.length), `Reading item sizes… ${fmtInt(done)} of ${fmtInt(needSize.length)}`);
+    });
+    if (state.cancel) return null;
+
+    // 4. Attachments in hosted feature layers -> file storage (Esri counts them as file storage)
+    const featureItems = [...items.values()].filter(it => { const c = classifyItem(it); return c && c.type === "feature"; });
+    const attach = new Map();
+    if (doAttach && featureItems.length) {
+      done = 0;
+      await pool(featureItems, 4, async (it) => {
+        try {
+          const a = await measureAttachments(it);
+          attach.set(it.id, a.bytes);
+          if (a.count) logEvent("DETAIL", `Attachments · "${it.title}" (${it.id}, owner ${it.owner}): ${fmtInt(a.count)} attachments, ${fmtMB(a.bytes)} MB in ${a.layers} layer(s) · item size reported ${fmtMB(Math.max(0, it.size))} MB`);
+        } catch (e) {
+          if (e.auth) throw e;
+          errors.push({ title: it.title || it.id, msg: "Couldn't measure attachments: " + e.message });
+        }
+        done++;
+        prog(0.75 + 0.23 * done / featureItems.length, `Measuring attachments… layer ${fmtInt(done)} of ${fmtInt(featureItems.length)}`);
+      });
+      if (state.cancel) return null;
+      state.attachById = attach;
+    }
+
+    // 5. Dynamic imagery per-image fees
+    const dynItems = [...items.values()].filter(it => { const c = classifyItem(it); return c && c.type === "imagery" && isDynamicImagery(it); });
+    const imgFees = new Map();
+    if (dynItems.length) {
+      done = 0;
+      await pool(dynItems, 4, async (it) => {
+        let info;
+        try { info = await countImages(it); }
+        catch (e) { if (e.auth) throw e; info = { n: 1, how: "count failed (" + e.message + "); lowest tier used" }; }
+        const perDay = imageFeePerDay(info.n);
+        imgFees.set(it.id, { n: info.n, perDay, annual: perDay * 365 });
+        logEvent("DETAIL", `Dynamic imagery · "${it.title}" (${it.id}, owner ${it.owner}): ${fmtInt(info.n)} image(s) [${info.how}] → ${perDay} credits/day → ${fmtCred(perDay * 365)} credits/yr in per-image fees`);
+        done++;
+        prog(0.98 + 0.02 * done / dynItems.length, `Counting images in dynamic imagery layers… ${fmtInt(done)} of ${fmtInt(dynItems.length)}`);
+      });
+      if (state.cancel) return null;
+    }
+
+    // 6. Aggregate by Esri storage type
+    const measured = new Map((state.records || []).map(r => [r.id, r.base]));
+    const blank = (m) => ({
+      username: m.username, fullName: m.fullName || "", role: m.role || "",
+      reported: typeof m.storageUsage === "number" ? m.storageUsage : null,
+      items: 0, dyn: 0, images: 0, imgFees: 0, feature: 0, imagery: 0, file: 0,
+      story: 0, attach: 0, tile: 0, scene: 0, vtile: 0, otherFiles: 0, skippedBytes: 0,
+      counted: []     // every item/part added up for this member: { id, title, type, as, bytes, unknown }
+    });
+    const byUser = new Map();
+    for (const m of members) byUser.set(m.username, blank(m));
+    let unknown = 0;
+    const typeCount = { feature: 0, imagery: 0, file: 0, skipped: 0 };
+    for (const it of items.values()) {
+      let u = byUser.get(it.owner);
+      if (!u) { u = blank({ username: it.owner }); byUser.set(it.owner, u); }
+      const c = classifyItem(it);
+      const size = it.size > 0 ? it.size : 0;
+      const add = (as, bytes) => u.counted.push({ id: it.id, title: it.title || "(untitled)", type: it.type, as, bytes, unknown: !(it.size >= 0) });
+      if (!c) {
+        typeCount.skipped++; u.skippedBytes += size;
+        add((it.typeKeywords || []).some(k => /view service/i.test(k)) ? "Not billed: feature layer view" : "Not billed: location sharing layer", size);
+        continue;
+      }
+      if (!(it.size >= 0)) unknown++;
+      typeCount[c.type]++;
+      u.items++;
+      if (c.part === "story") {
+        const b = measured.has(it.id) ? measured.get(it.id) : size;
+        u.story += b; u.file += b;
+        add("File storage: StoryMap", b);
+      } else if (c.type === "file") {
+        u[c.part] += size; u.file += size;                   // otherFiles, tile, scene, vtile
+        add({ tile: "File storage: tile layer", scene: "File storage: scene layer", vtile: "File storage: vector tile layer" }[c.part] || "File storage", size);
+      } else if (c.type === "feature") {
+        // The reported layer size includes its attachments; attachments are file storage, so move them out.
+        const a = attach.get(it.id) || 0;
+        const feat = a <= size ? size - a : size;           // if attachments exceed the size, the size already excludes them
+        if (a > size) logEvent("WARN", `"${it.title}" (${it.id}): attachments ${fmtMB(a)} MB exceed reported size ${fmtMB(size)} MB; size used as feature storage unchanged`);
+        u.feature += feat;
+        u.attach += a; u.file += a;
+        add("Feature storage", feat);
+        if (a) add("File storage: attachments", a);
+      } else if (c.type === "imagery") {
+        u.imagery += size;
+        add("Imagery storage", size);
+        if (isDynamicImagery(it)) {
+          const f = imgFees.get(it.id) || { n: 1, annual: 10 * 365 };
+          u.dyn++; u.images += f.n; u.imgFees += f.annual;
+        }
+      }
+    }
+    if (unknown) errors.push({ title: "Unknown sizes", msg: `${fmtInt(unknown)} items had no size available and were counted as 0.` });
+
+    const rows = [], gaps = [];
+    for (const u of byUser.values()) {
+      const placed = u.feature + u.imagery + u.file + u.skippedBytes;
+      u.other = u.reported != null ? Math.max(0, u.reported - placed) : 0;
+      gaps.push({ username: u.username, reported: u.reported, placed, gap: u.reported != null ? u.reported - placed : null });
+      u.totalBytes = 0; u.totalCredits = 0;
+      for (const c of CATS) {
+        u[c.key + "Cr"] = catCredits(c.key, u[c.key]) + (c.key === "imagery" ? u.imgFees : 0);
+        u.totalBytes += u[c.key];
+        u.totalCredits += u[c.key + "Cr"];
+      }
+      u.imagerySizeCr = catCredits("imagery", u.imagery);
+      rows.push(u);
+    }
+    const sum = (k) => rows.reduce((a, u) => a + u[k], 0);
+    logEvent("SUMMARY", `${label}: ${rows.length} members · ${items.size} items (feature ${typeCount.feature}, imagery ${typeCount.imagery}, file ${typeCount.file}, not storage: views/location sharing ${typeCount.skipped}) · unknown sizes ${unknown}`);
+    logEvent("SUMMARY", `Feature storage ${fmtMB(sum("feature"))} MB (attachments removed) · imagery storage ${fmtMB(sum("imagery"))} MB + ${fmtInt(sum("dyn"))} dynamic layer(s) with ${fmtInt(sum("images"))} image(s) · file storage ${fmtMB(sum("file"))} MB (StoryMaps ${fmtMB(sum("story"))}, attachments ${fmtMB(sum("attach"))}, tile ${fmtMB(sum("tile"))}, scene ${fmtMB(sum("scene"))}, vector tile ${fmtMB(sum("vtile"))}, other files ${fmtMB(sum("otherFiles"))}) · unclassified ${fmtMB(sum("other"))} MB`);
+    gaps.filter(g => g.gap !== null).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).slice(0, 25).forEach(g =>
+      logEvent("DETAIL", `${g.username}: ArcGIS-reported ${fmtMB(g.reported)} MB · placed in a storage type ${fmtMB(g.placed)} MB · difference ${g.gap >= 0 ? "+" : ""}${fmtMB(g.gap)} MB`));
+    logEvent("SUMMARY", `Estimated credits/yr: feature ${fmtCred(sum("featureCr"))} · imagery ${fmtCred(sum("imageryCr"))} (of which per-image fees ${fmtCred(sum("imgFees"))}) · file ${fmtCred(sum("fileCr"))} · unclassified ${fmtCred(sum("otherCr"))} · total ${fmtCred(sum("totalCredits"))}`);
+
+    return { rows, items, featureItems };
+  }
+
+  // ================= TAB: INACTIVE USERS =================
+  function iProgress(frac, text) {
+    $("#iBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+    if (text !== undefined) $("#iStatus").textContent = text;
+  }
+  function orgHome() {
+    const s = state.self;
+    return s && !s.isPortal && s.urlKey && s.customBaseUrl ? `https://${s.urlKey}.${s.customBaseUrl}` : state.portal;
+  }
+  // The member's row on the organization's Members page (searched by username).
+  const memberUrl = (username) => `${orgHome()}/home/organization.html?sortField=lastlogin&sortOrder=desc&searchTerm=${encodeURIComponent(username)}#members`;
+  const USER_TYPES = {
+    viewerUT: "Viewer", contributorUT: "Contributor", editorUT: "Contributor", mobileWorkerUT: "Mobile Worker",
+    fieldWorkerUT: "Field Worker", creatorUT: "Creator", GISProfessionalBasicUT: "GIS Professional Basic",
+    GISProfessionalStdUT: "GIS Professional Standard", GISProfessionalAdvUT: "GIS Professional Advanced",
+    storytellerUT: "Storyteller", insightsAnalystUT: "Insights Analyst"
+  };
+  const userTypeName = (id) => id ? (USER_TYPES[id] || id) : "";
+  const roleName = (m) => m.roleId && !/^(org_admin|org_publisher|org_user)$/.test(m.roleId) ? "Custom role"
+    : ({ org_admin: "Administrator", org_publisher: "Publisher", org_user: "User" }[m.role] || m.role || "");
+  function ago(ms) {
+    if (!(ms > 0)) return "";
+    const d = (Date.now() - ms) / DAY;
+    if (d < 1) return "today";
+    if (d < 60) return `${Math.floor(d)} days ago`;
+    if (d < 730) return `${Math.floor(d / 30.44)} months ago`;
+    return `${(d / 365.25).toFixed(1)} years ago`;
+  }
+  // Activity buckets for the summary bar
+  const ACT = [
+    { key: "d30",   label: "Last 30 days",      color: "#2e7d32" },
+    { key: "d90",   label: "31–90 days",        color: "#7cb342" },
+    { key: "d365",  label: "91 days – 1 year",  color: "#c0ca33" },
+    { key: "y2",    label: "1–2 years",         color: "#f0a020" },
+    { key: "yMore", label: "Over 2 years",      color: "#d0661d" },
+    { key: "never", label: "Never signed in",   color: "#8a8f98" }
+  ];
+  function activityBucket(m, now) {
+    if (!(m.lastLogin > 0)) return "never";
+    const d = (now - m.lastLogin) / DAY;
+    if (d <= 30) return "d30";
+    if (d <= 90) return "d90";
+    if (d <= 365) return "d365";
+    if (d <= 730) return "y2";
+    return "yMore";
+  }
+
+  $("#iScanBtn").addEventListener("click", runInactiveScan);
+  $("#iCancelBtn").addEventListener("click", () => { state.cancel = true; iProgress(0, "Cancelling…"); });
+
+  async function runInactiveScan() {
+    if (state.busy) return;
+    if (!isAdminUser()) {
+      iProgress(0, "This tab needs an administrator account: only administrators can see when members last signed in.");
+      return;
+    }
+    setBusy(true);
+    state.cancel = false;
+    $("#iCancelBtn").classList.remove("hidden");
+    const errors = [];
+    logEvent("INFO", "=== Inactive users scan started ===");
+    try {
+      iProgress(0.02, "Listing organization members…");
+      const members = await listOrgUsers();
+      if (state.cancel) return iProgress(0, "Scan cancelled.");
+      if (!members.length) {
+        iProgress(0, "Couldn't list organization members. This tab needs an administrator account.");
+        logEvent("ERROR", "Inactive users: member list was empty or blocked");
+        return;
+      }
+      const now = Date.now(), cutoff = now - 365 * DAY;
+      const counts = Object.fromEntries(ACT.map(a => [a.key, 0]));
+      for (const m of members) counts[activityBucket(m, now)]++;
+      const noLoginField = members.filter(m => m.lastLogin === undefined).length;
+      if (noLoginField) errors.push({ title: "Last sign-in", msg: `${fmtInt(noLoginField)} member(s) had no last sign-in value and are treated as never signed in.` });
+      const inactive = members.filter(m => m.lastLogin > 0 ? m.lastLogin < cutoff : (m.created || 0) < cutoff);
+      logEvent("INFO", `Inactive users: ${members.length} members · ${inactive.length} haven't signed in for over a year (incl. never signed in, created over a year ago) · buckets ${ACT.map(a => `${a.label} ${counts[a.key]}`).join(", ")}`);
+
+      let rows = [];
+      if (inactive.length) {
+        const res = await measureMembers(inactive, { doAttach: true, errors, prog: (f, t) => iProgress(0.05 + 0.95 * f, t), label: "Inactive users" });
+        if (!res) return iProgress(0, "Scan cancelled.");
+        const byName = new Map(inactive.map(m => [m.username, m]));
+        rows = res.rows.filter(u => byName.has(u.username)).map(u => {
+          const m = byName.get(u.username);
+          return Object.assign(u, {
+            lastLogin: m.lastLogin > 0 ? m.lastLogin : null, created: m.created || null,
+            userType: userTypeName(m.userLicenseTypeId), roleLabel: roleName(m), disabled: !!m.disabled
+          });
+        });
+      }
+      state.inactive = rows;
+      state.iMembers = members.length;
+      state.iCounts = counts;
+      state.iErrors = errors;
+      state.iSortKey = "totalCredits"; state.iSortDir = -1;
+      logEvent("SUMMARY", `Inactive users: ${rows.length} accounts · ${fmtMB(rows.reduce((a, u) => a + u.totalBytes, 0))} MB · ${fmtCred(rows.reduce((a, u) => a + u.totalCredits, 0))} storage credits over the next 12 months`);
+      iProgress(1, `Done. ${fmtInt(rows.length)} of ${fmtInt(members.length)} members haven't signed in for over a year.`);
+      renderInactive();
+    } catch (e) {
+      logEvent("ERROR", "Inactive users scan stopped: " + e.message);
+      if (e.auth) {
+        iProgress(0, "");
+        showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
+      } else iProgress(0, "Scan failed: " + e.message);
+    } finally {
+      setBusy(false);
+      $("#iCancelBtn").classList.add("hidden");
+    }
+  }
+
+  function renderInactive() {
+    const rows = state.inactive || [];
+    const n = state.iMembers || 0, c = state.iCounts || {};
+    const cr = rows.reduce((a, u) => a + u.totalCredits, 0);
+    const bytes = rows.reduce((a, u) => a + u.totalBytes, 0);
+    const withContent = rows.filter(u => u.totalBytes > 0).length;
+    const never = rows.filter(u => !u.lastLogin).length;
+    const pct = (x) => n ? `${(100 * x / n).toFixed(0)}%` : "–";
+    const active12 = (c.d30 || 0) + (c.d90 || 0) + (c.d365 || 0);
+    $("#iResultsWrap").classList.remove("hidden");
+    $("#iTitle").textContent = `Inactive users (${fmtInt(rows.length)})`;
+    $("#iSummary").innerHTML = `
+      <section class="card" style="margin:0 0 18px">
+        <div class="toolbar" style="margin-bottom:4px">
+          <h2 style="margin:0">Member activity</h2>
+          <div class="spacer"></div>
+          <div class="hint" style="margin:0">${fmtInt(n)} members · by last sign-in</div>
+        </div>
+        <div class="dashbar" style="margin-top:8px">${ACT.map(a => `<span style="width:${n ? (100 * (c[a.key] || 0) / n).toFixed(3) : 0}%;background:${a.color}" title="${esc(a.label)}: ${fmtInt(c[a.key] || 0)}"></span>`).join("")}</div>
+        <div class="dashlegend">${ACT.map(a => `<div><i style="background:${a.color}"></i><span>${esc(a.label)} <b>${fmtInt(c[a.key] || 0)}</b><small>${pct(c[a.key] || 0)} of members</small></span></div>`).join("")}</div>
+      </section>
+      <div class="tiles">
+        <div class="tile"><div class="k">Members</div><div class="v">${fmtInt(n)}</div><div class="s">${fmtInt(c.d30 || 0)} signed in during the last 30 days</div></div>
+        <div class="tile"><div class="k">Active in last 12 months</div><div class="v">${fmtInt(active12)}</div><div class="s">${pct(active12)} of members</div></div>
+        <div class="tile"><div class="k">Inactive over 1 year</div><div class="v">${fmtInt(rows.length)}</div><div class="s">${pct(rows.length)} of members · ${fmtInt(never)} never signed in</div></div>
+        <div class="tile"><div class="k">Inactive accounts' storage</div><div class="v">${fmtCred(cr)}</div><div class="s">credits, next 12 months · ${fmtSize(bytes)} · ${fmtInt(withContent)} with content</div></div>
+      </div>`;
+    renderInactiveTable();
+    const errs = state.iErrors || [];
+    $("#iErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
+      errs.slice(0, 200).map(e => `<li><b>${esc(e.title)}</b>: ${esc(e.msg)}</li>`).join("")}</ul></details>` : "";
+  }
+
+  const I_COLS = [
+    { key: "username", label: "User" },
+    { key: "userType", label: "User type" },
+    { key: "roleLabel", label: "Role" },
+    { key: "lastLogin", label: "Last sign-in" },
+    { key: "created", label: "Member since" },
+    { key: "items", label: "Items", num: true },
+    { key: "totalBytes", label: "Storage<br><span class=\"when\">MB, now</span>", num: true },
+    { key: "totalCredits", label: "Storage credits<br><span class=\"when\">next 12 months</span>", num: true },
+    { key: "link", label: "", nosort: true }
+  ];
+  function inactiveRows() {
+    const f = $("#iFilterIn").value.trim().toLowerCase();
+    const k = state.iSortKey, d = state.iSortDir;
+    return (state.inactive || [])
+      .filter(u => !f || u.username.toLowerCase().includes(f) || (u.fullName || "").toLowerCase().includes(f))
+      .sort((a, b) => {
+        const x = a[k], y = b[k];
+        if (typeof x === "string" || typeof y === "string") return d * String(x || "").localeCompare(String(y || ""));
+        return d * ((x ?? -1) - (y ?? -1));
+      });
+  }
+  function renderInactiveTable() {
+    const k = state.iSortKey, d = state.iSortDir;
+    $("#iThead").innerHTML = "<tr>" + I_COLS.map(c =>
+      `<th class="${c.num ? "num" : ""}" data-key="${c.key}" ${c.nosort ? 'style="cursor:default"' : ""}>${c.label}<span class="arrow">${c.key === k ? (d < 0 ? "▼" : "▲") : ""}</span></th>`).join("") + "</tr>";
+    const rows = inactiveRows();
+    const maxCr = Math.max(1e-9, ...rows.map(u => u.totalCredits));
+    $("#iTbody").innerHTML = rows.map(u => {
+      const bar = `<div class="sizebar">${CATS.map(c => `<span class="${c.cls}" style="width:${(100 * u[c.key + "Cr"] / maxCr).toFixed(2)}%"></span>`).join("")}</div>`;
+      const parts = CATS.filter(c => u[c.key + "Cr"] > 0).map(c => `${c.label} ${fmtCred(u[c.key + "Cr"])}`).join(" · ");
+      return `<tr>
+        <td class="title"><a href="${esc(memberUrl(u.username))}" target="_blank" rel="noopener">${esc(u.fullName || u.username)}</a>
+          <div class="meta">${esc(u.username)}${u.disabled ? ' <span class="pill err">disabled</span>' : ""}</div></td>
+        <td>${esc(u.userType)}</td>
+        <td>${esc(u.roleLabel)}</td>
+        <td style="white-space:nowrap">${u.lastLogin ? `${fmtDate(u.lastLogin)}<div class="meta">${ago(u.lastLogin)}</div>` : '<b>Never</b>'}</td>
+        <td style="white-space:nowrap">${fmtDate(u.created)}</td>
+        <td class="num">${fmtInt(u.items)}</td>
+        <td class="num">${fmtMB(u.totalBytes)}</td>
+        <td class="num" style="font-weight:700" title="${esc(parts)}">${fmtCred(u.totalCredits)}${u.totalCredits > 0 ? bar : ""}</td>
+        <td><a class="small" href="${esc(memberUrl(u.username))}" target="_blank" rel="noopener">Member page</a></td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="${I_COLS.length}" style="color:var(--muted);padding:18px">No members have been inactive for over a year.</td></tr>`;
+  }
+  $("#iThead").addEventListener("click", (e) => {
+    const th = e.target.closest("th[data-key]"); if (!th) return;
+    const c = I_COLS.find(c => c.key === th.dataset.key);
+    if (!c || c.nosort) return;
+    if (state.iSortKey === c.key) state.iSortDir *= -1;
+    else { state.iSortKey = c.key; state.iSortDir = ["username", "userType", "roleLabel", "lastLogin", "created"].includes(c.key) ? 1 : -1; }
+    renderInactiveTable();
+  });
+  $("#iFilterIn").addEventListener("input", renderInactiveTable);
+  $("#iCsvBtn").addEventListener("click", () => {
+    const head = ["Username", "Full name", "User type", "Role", "Disabled", "Last sign-in", "Member since", "Items",
+      "Storage now (MB)", "Feature storage credits, next 12 months", "Imagery storage credits, next 12 months", "File storage credits, next 12 months", "Unclassified credits, next 12 months",
+      "Total storage credits, next 12 months", "Member page URL"];
+    const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const lines = [head.join(",")];
+    for (const u of inactiveRows()) {
+      lines.push([u.username, u.fullName, u.userType, u.roleLabel, u.disabled ? "yes" : "no", u.lastLogin ? isoDate(u.lastLogin) : "never", isoDate(u.created), u.items,
+        (u.totalBytes / MB).toFixed(2), u.featureCr.toFixed(2), u.imageryCr.toFixed(2), u.fileCr.toFixed(2), u.otherCr.toFixed(2),
+        u.totalCredits.toFixed(2), memberUrl(u.username)].map(q).join(","));
+    }
+    download(`inactive-users-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
 
   // ---------- startup ----------
