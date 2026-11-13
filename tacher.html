@@ -235,6 +235,11 @@
   .ackline input{margin-top:3px}
   .dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
   #rbTable{min-width:700px;font-size:13px}
+  button.btn-sm{padding:4px 12px;font-size:12px;margin-top:6px}
+  #sTable td.actions{white-space:nowrap}
+  .delmodes{display:flex;flex-direction:column;gap:8px;margin:12px 0 0}
+  .delmodes label{display:flex;gap:8px;align-items:flex-start;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);font-size:14px;margin:0;border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer}
+  .delmodes input{margin-top:3px}
   footer.credit{text-align:left;margin-top:28px;font-size:13px}
   footer.credit a{color:var(--accent);font-weight:600;text-decoration:none}
   footer.credit a:hover{text-decoration:underline}
@@ -275,7 +280,8 @@
   <nav class="apptabs" role="tablist">
     <button class="active" data-apptab="overview" role="tab">Overview</button>
     <button data-apptab="recycle" role="tab">Recycle bin</button>
-    <button data-apptab="suspects" role="tab">Large, underused items</button>
+    <button data-apptab="suspects" role="tab">Underused items</button>
+    <button data-apptab="model" role="tab">School year 2027-2028</button>
   </nav>
 
   <!-- ================= TAB: OVERVIEW (first tab) ================= -->
@@ -303,34 +309,7 @@
         <div class="legend"><span><i style="background:var(--accent)"></i>Actual</span><span><i class="dashkey"></i>Projected at the term-to-date average</span></div>
       </div>
       <div id="oChart" class="ochart"></div>
-    </section>
-
-    <section class="card">
-      <div class="toolbar">
-        <h2 style="margin:0">Credits used by service since August 1, 2025</h2>
-        <div class="spacer"></div>
-        <button class="secondary" id="oCsvBtn">Export (CSV)</button>
-      </div>
-      <div class="tablewrap">
-        <table id="oTable"><thead id="oThead"></thead><tbody id="oTbody"></tbody></table>
-      </div>
       <div id="oErrorsBox"></div>
-    </section>
-
-    <section class="card">
-      <h2 style="margin-bottom:4px">Modeled credit consumption for school year 2027-2028</h2>
-      <p class="hint" style="margin:0 0 12px">School year 2027–2028 runs August 1, 2027 – July 31, 2028 (366 days). The model assumes the organization keeps using credits at its term-to-date average.</p>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-        <span style="font-weight:600;font-size:13.5px">Anticipated credits for 2027–2028:</span>
-        <div class="seg" id="oAllot" role="radiogroup" aria-label="Anticipated credits">
-          <button data-v="1000" role="radio">1,000</button>
-          <button data-v="2500" role="radio">2,500</button>
-          <button data-v="5000" role="radio" class="active" aria-checked="true">5,000</button>
-          <button data-v="10000" role="radio">10,000</button>
-          <button data-v="25000" role="radio">25,000</button>
-        </div>
-      </div>
-      <div id="oModel"></div>
     </section>
 
     <section class="card">
@@ -394,16 +373,16 @@
   </section>
   </div>
 
-  <!-- ================= TAB: LARGE, UNDERUSED ITEMS ================= -->
+  <!-- ================= TAB: UNDERUSED ITEMS ================= -->
   <div class="tabpanel hidden" id="tab-suspects">
   <section class="card">
-    <h2>Large, underused items</h2>
+    <h2>Underused items</h2>
     <p style="margin:0 0 8px">This tab shows the top 25 feature data services that may make the most sense to remove. Remember, this service may still be in use by another map or service.</p>
     <p class="hint" style="margin:0 0 4px">Looks at the hosted feature layers in scope (views and location sharing layers excluded), takes the 100 largest, and ranks them by
       <b>estimated credits per year for each view in the last 12 months</b>. Large layers that are rarely used rise to the top.</p>
     <p class="hint" style="margin:6px 0 0">Looking at: <b id="sScope"></b></p>
     <div style="margin-top:14px;display:flex;gap:10px">
-      <button id="sScanBtn">Find large, underused items</button>
+      <button id="sScanBtn">Find underused items</button>
       <button class="secondary hidden" id="sCancelBtn">Cancel</button>
     </div>
     <div class="progress"><div id="sBar"></div></div>
@@ -411,13 +390,13 @@
   </section>
 
   <section class="hidden" id="sResultsWrap">
-    <div class="tiles" id="sTiles" style="margin-bottom:18px"></div>
     <section class="card">
       <div class="toolbar">
         <h2 style="margin:0">Top 25 feature layers to review</h2>
         <div class="spacer"></div>
         <button class="secondary" id="sCsvBtn">Export (CSV)</button>
       </div>
+      <div id="sDelMsg"></div>
       <div class="tablewrap">
         <table id="sTable">
           <thead id="sThead"></thead>
@@ -435,6 +414,35 @@
       </footer>
     </section>
   </section>
+  </div>
+
+  <!-- ================= TAB: SCHOOL YEAR 2027-2028 ================= -->
+  <div class="tabpanel hidden" id="tab-model">
+  <section class="card" id="mEmpty">
+    <h2>Modeled credit consumption for school year 2027-2028</h2>
+    <p style="margin:0 0 6px">This model projects school year 2027–2028 (August 1, 2027 – July 31, 2028) from your organization's current rate of credit consumption.</p>
+    <p class="hint" style="margin:0">It uses the same numbers as the Overview tab. If you've already run the Overview, the model appears here automatically.</p>
+    <div style="margin-top:14px;display:flex;gap:10px">
+      <button id="mScanBtn">Check credit consumption</button>
+    </div>
+    <div class="progress"><div id="mBar"></div></div>
+    <div class="status" id="mStatus"></div>
+  </section>
+    <section class="card hidden" id="mModelCard">
+      <h2 style="margin-bottom:4px">Modeled credit consumption for school year 2027-2028</h2>
+      <p class="hint" style="margin:0 0 12px">School year 2027–2028 runs August 1, 2027 – July 31, 2028 (366 days). The model assumes the organization keeps using credits at its term-to-date average.</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-weight:600;font-size:13.5px">Anticipated credits for 2027–2028:</span>
+        <div class="seg" id="oAllot" role="radiogroup" aria-label="Anticipated credits">
+          <button data-v="1000" role="radio">1,000</button>
+          <button data-v="2500" role="radio">2,500</button>
+          <button data-v="5000" role="radio" class="active" aria-checked="true">5,000</button>
+          <button data-v="10000" role="radio">10,000</button>
+          <button data-v="25000" role="radio">25,000</button>
+        </div>
+      </div>
+      <div id="oModel"></div>
+    </section>
   </div>
 
   </div>
@@ -643,6 +651,7 @@
     $("#whoBox").classList.add("hidden");
     $("#appArea").classList.add("hidden");
     $("#oResultsWrap").classList.add("hidden");
+    $("#mModelCard").classList.add("hidden"); $("#mEmpty").classList.remove("hidden");
     oProgress(0, "");
     state.suspects = []; state.attachById = null; $("#sResultsWrap").classList.add("hidden"); sProgress(0, "");
     state.rb = null; rbProgress(0, ""); showMsg($("#rbResult"), "", ""); showMsg($("#rbToggleMsg"), "", "");
@@ -655,6 +664,7 @@
   function setBusy(on) {
     state.busy = on;
     $("#oScanBtn").disabled = on;
+    $("#mScanBtn").disabled = on;
     $("#rbListBtn").disabled = on;
     $("#rbRefreshBtn").disabled = on;
     $("#rbEmptyBtn").disabled = on || !(state.rb && state.rb.length);
@@ -722,7 +732,7 @@
     if (name === "overview" && state.ov) drawBalanceChart($("#oChart"), state.ov);
   }
   document.querySelectorAll(".apptabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.apptab)));
-  try { const t = sessionStorage.getItem("agoCleanup.tab"); if (["overview", "recycle", "suspects"].includes(t)) showTab(t); } catch (e) {}
+  try { const t = sessionStorage.getItem("agoCleanup.tab"); if (["overview", "recycle", "suspects", "model"].includes(t)) showTab(t); } catch (e) {}
 
   // ================= TAB: OVERVIEW =================
   const TERM_START = Date.UTC(2025, 7, 1);                 // Aug 1, 2025 (credit reset)
@@ -733,9 +743,12 @@
   const fmtDay = (ms) => new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
   const fmtC0 = (c) => Math.round(c).toLocaleString();
   function oProgress(frac, text) {
-    $("#oBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
-    if (text !== undefined) $("#oStatus").textContent = text;
+    for (const [bar, st] of [["#oBar", "#oStatus"], ["#mBar", "#mStatus"]]) {   // Overview and the School year 2027-2028 tab share one scan
+      $(bar).style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
+      if (text !== undefined) $(st).textContent = text;
+    }
   }
+  $("#mScanBtn").addEventListener("click", () => runOverview());
 
   // Friendly names for usage reporting's service codes (unknown codes are shown as-is).
   const USAGE_NAMES = {
@@ -901,7 +914,6 @@
     ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 
     drawBalanceChart($("#oChart"), o);
-    renderUsageTable();
     renderModel();
     const errs = o.errors || [];
     $("#oErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
@@ -980,24 +992,6 @@
     hit.addEventListener("mouseleave", () => { xh.classList.add("hidden"); xd.classList.add("hidden"); tip.classList.add("hidden"); });
   }
 
-  function renderUsageTable() {
-    const o = state.ov;
-    $("#oThead").innerHTML = `<tr><th>Service</th><th class="num">Credits since Aug 1, 2025</th><th class="num">Share</th><th class="num">Per day</th><th class="num">Last 30 days</th><th class="num">At this rate for 12 months</th></tr>`;
-    if (!o.byType.length) {
-      $("#oTbody").innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:16px">A breakdown by service isn't available.</td></tr>`;
-      return;
-    }
-    const max = Math.max(...o.byType.map(r => r.credits));
-    $("#oTbody").innerHTML = o.byType.map(r => `<tr>
-      <td><b>${esc(r.label)}</b><div class="meta" style="font-size:11.5px;color:var(--muted)">${esc(r.codes.join(", "))}</div></td>
-      <td class="num" style="font-weight:700">${fmtCred(r.credits)}<div class="sizebar"><span style="width:${(100 * r.credits / max).toFixed(2)}%;background:var(--accent)"></span></div></td>
-      <td class="num">${(100 * r.credits / Math.max(1e-9, o.used)).toFixed(1)}%</td>
-      <td class="num">${fmtCred(r.credits / o.daysElapsed)}</td>
-      <td class="num">${fmtCred(r.last30)}</td>
-      <td class="num">${fmtC0(r.credits / o.daysElapsed * 365)}</td>
-    </tr>`).join("") + `<tr class="totalrow"><td><b>All services</b></td><td class="num"><b>${fmtCred(o.used)}</b></td><td class="num">100%</td><td class="num"><b>${fmtCred(o.rate)}</b></td><td class="num">${o.last30 == null ? "n/a" : fmtCred(o.last30 * Math.min(30, o.daysElapsed))}</td><td class="num"><b>${fmtC0(o.rate * 365)}</b></td></tr>`;
-  }
-
   const ALLOTMENTS = [1000, 2500, 5000, 10000, 25000];
   state.oAllot = (() => { try { const v = Number(localStorage.getItem("agoCleanup.allot")); return ALLOTMENTS.includes(v) ? v : 5000; } catch (e) { return 5000; } })();
   function syncAllotButtons() {
@@ -1020,7 +1014,10 @@
   }
 
   function renderModel() {
-    const o = state.ov; if (!o) return;
+    const o = state.ov;
+    $("#mModelCard").classList.toggle("hidden", !o);
+    $("#mEmpty").classList.toggle("hidden", !!o);
+    if (!o) return;
     const md = modelFor(state.oAllot, o);
     const storageYr = o.storageRate != null ? o.storageRate * NEXT_DAYS : null;
     const kind = md.lastsAll ? (md.diff / md.allot < 0.1 ? "warn" : "good") : "bad";
@@ -1052,19 +1049,6 @@
       `<p class="hint" style="margin:12px 0 0">To bring consumption down, start with storage: it keeps charging every day, while most other services only charge when they're used.</p>`;
   }
 
-  function oCsv() {
-    const o = state.ov; if (!o) return;
-    const q = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    const lines = [["Service", "Usage codes", "Storage", "Credits since Aug 1 2025", "Share %", "Per day", "Last 30 days", "At this rate for 12 months"].join(",")];
-    for (const r of o.byType) lines.push([r.label, r.codes.join("; "), r.storage ? "yes" : "no", r.credits.toFixed(2), (100 * r.credits / Math.max(1e-9, o.used)).toFixed(2),
-      (r.credits / o.daysElapsed).toFixed(2), r.last30.toFixed(2), (r.credits / o.daysElapsed * 365).toFixed(0)].map(q).join(","));
-    lines.push(["All services", "", "", o.used.toFixed(2), "100", o.rate.toFixed(2), "", (o.rate * 365).toFixed(0)].map(q).join(","));
-    lines.push("");
-    lines.push(["Available credits now", o.bal.toFixed(2)].join(","));
-    lines.push(["Projected balance Jul 31 2027", o.endBal.toFixed(2)].join(","));
-    download(`credit-overview-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
-  }
-  $("#oCsvBtn").addEventListener("click", oCsv);
   let oResizeT;
   window.addEventListener("resize", () => { clearTimeout(oResizeT); oResizeT = setTimeout(() => { if (state.ov && !$("#tab-overview").classList.contains("hidden")) drawBalanceChart($("#oChart"), state.ov); }, 150); });
 
@@ -1408,7 +1392,7 @@
     return { bytes, count, layers: withAtt.length };
   }
 
-  // ================= TAB: LARGE, UNDERUSED ITEMS =================
+  // ================= TAB: UNDERUSED ITEMS =================
   const SUSPECT_COUNT = 25, SUSPECT_POOL = 100;
   function sProgress(frac, text) {
     $("#sBar").style.width = Math.max(0, Math.min(1, frac)) * 100 + "%";
@@ -1439,7 +1423,8 @@
     state.cancel = false;
     $("#sCancelBtn").classList.remove("hidden");
     const errors = [];
-    logEvent("INFO", "=== Large, underused items scan started ===");
+    logEvent("INFO", "=== Underused items scan started ===");
+    showMsg($("#sDelMsg"), "", "");
     try {
       const orgId = state.self.id;
 
@@ -1447,7 +1432,7 @@
       sProgress(0.02, "Finding hosted feature layers…");
       const mine = !isAdminUser();
       const q = (mine ? `owner:"${String(state.user.username).replace(/"/g, '\\"')}" AND ` : (orgId ? `orgid:${orgId} AND ` : "")) + `type:"Feature Service" AND typekeywords:"Hosted Service"`;
-      logEvent("INFO", `Large, underused items: scope ${mine ? "my layers (" + state.user.username + ")" : "whole organization"}`);
+      logEvent("INFO", `Underused items: scope ${mine ? "my layers (" + state.user.username + ")" : "whole organization"}`);
       const { items: found, total } = await searchAll(q, (n, t) => sProgress(0.02 + 0.18 * n / Math.max(1, t), `Finding hosted feature layers… ${fmtInt(n)} of ${fmtInt(t)}`));
       if (state.cancel) return sProgress(0, "Scan cancelled.");
       if (total > 10000) errors.push({ title: "Search limit", msg: `${fmtInt(total)} matches; ArcGIS search returns at most 10,000.` });
@@ -1502,18 +1487,18 @@
       const ranked = pool100.slice().sort((a, b) => b.perView - a.perView).slice(0, SUSPECT_COUNT);
       ranked.forEach((it, i) => {
         it.rank = i + 1;
-        logEvent("DETAIL", `Large, underused #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · numViews ${it.numViews ?? "n/a"}`);
+        logEvent("DETAIL", `Underused #${it.rank} · "${it.title}" (${it.id}, owner ${it.owner}) · ${fmtMB(it.size)} MB (attachments ${fmtMB(it.attach || 0)}) · ${fmtCred(it.credits)} credits/yr · views 12 mo ${it.v12 ?? "n/a"} · 30 days ${it.v30 ?? "n/a"} · numViews ${it.numViews ?? "n/a"}`);
       });
       state.suspects = ranked;
       state.sAll = pool100;
       state.sLayerCount = layers.length;
       state.sErrors = errors;
       state.sSortKey = "rank"; state.sSortDir = 1;
-      logEvent("SUMMARY", `Large, underused items: ${layers.length} hosted feature layers · ${pool100.length} largest checked · top ${ranked.length} cost ${fmtCred(ranked.reduce((a, it) => a + it.credits, 0))} credits/yr · usage unavailable for ${usageFails}`);
+      logEvent("SUMMARY", `Underused items: ${layers.length} hosted feature layers · ${pool100.length} largest checked · top ${ranked.length} cost ${fmtCred(ranked.reduce((a, it) => a + it.credits, 0))} credits/yr · usage unavailable for ${usageFails}`);
       sProgress(1, `Done. Checked the ${fmtInt(pool100.length)} largest of ${fmtInt(layers.length)} hosted feature layers.`);
       renderSuspects();
     } catch (e) {
-      logEvent("ERROR", "Large, underused items scan stopped: " + e.message);
+      logEvent("ERROR", "Underused items scan stopped: " + e.message);
       if (e.auth) {
         sProgress(0, "");
         showMsg($("#roleWarn"), "err", "Your sign-in expired or was rejected (" + esc(e.message) + "). Sign out and sign in again.");
@@ -1534,22 +1519,11 @@
     { key: "numViews", label: "Lifetime views (numViews)", num: true },
     { key: "perView", label: "Credits per view", num: true },
     { key: "modified", label: "Last modified" },
-    { key: "link", label: "", nosort: true }
+    { key: "link", label: "Actions", nosort: true }
   ];
 
   function renderSuspects() {
-    const rows = state.suspects || [];
-    const cr = rows.reduce((a, it) => a + it.credits, 0);
-    const bytes = rows.reduce((a, it) => a + it.size, 0);
-    const idle = rows.filter(it => it.v12 === 0).length;
-    const quiet = rows.filter(it => it.v30 === 0).length;
     $("#sResultsWrap").classList.remove("hidden");
-    $("#sTiles").innerHTML = [
-      ["Top 25 cost", fmtCred(cr), `credits / yr · ${fmtSize(bytes)}`],
-      ["No views in 12 months", fmtInt(idle), `of the top ${rows.length} items`],
-      ["No views in 30 days", fmtInt(quiet), `of the top ${rows.length} items`],
-      ["Layers checked", fmtInt((state.sAll || []).length), `largest of ${fmtInt(state.sLayerCount || 0)} hosted feature layers`]
-    ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
     renderSuspectTable();
     const errs = state.sErrors || [];
     $("#sErrorsBox").innerHTML = errs.length ? `<details class="errors"><summary>${errs.length} warning${errs.length > 1 ? "s" : ""}</summary><ul>${
@@ -1577,9 +1551,72 @@
       <td class="num" title="${it.numViews == null ? "The item didn't report numViews" : `The item's numViews, read ${new Date(it.viewsReadAt).toLocaleTimeString()}. Opening the item page adds to this count.`}">${it.numViews == null ? '<span style="color:var(--muted)">n/a</span>' : fmtInt(it.numViews)}</td>
       <td class="num">${fmtCred(it.perView)}</td>
       <td style="white-space:nowrap">${fmtDate(it.modified)}</td>
-      <td><a class="small" href="${esc(itemUrl(it.id))}" target="_blank" rel="noopener">Item details</a></td>
-    </tr>`).join("") || `<tr><td colspan="${S_COLS.length}" style="color:var(--muted);padding:18px">No hosted feature layers found.</td></tr>`;
+      <td class="actions"><a class="small" href="${esc(itemUrl(it.id))}" target="_blank" rel="noopener">Item details</a>
+        <div>${it.protected
+          ? `<button class="danger btn-sm" disabled title="This item is delete protected. Turn off delete protection in the item's settings first.">Delete</button>`
+          : `<button class="danger btn-sm" data-del="${esc(it.id)}" title="Delete this layer">Delete</button>`}</div></td>
+    </tr>`).join("") || `<tr><td colspan="${S_COLS.length}" style="color:var(--muted);padding:18px">No layers left in this list.</td></tr>`;
   }
+  // ---- delete a layer from the list ----
+  $("#sTbody").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-del]");
+    if (!btn || state.busy) return;
+    const it = (state.suspects || []).find(x => x.id === btn.dataset.del);
+    if (!it) return;
+    const rbOn = !!(state.self && state.self.recycleBinEnabled);
+    const mb = fmtMB(it.size);
+    const ok = await confirmDialog({
+      title: `Delete "${it.title}"?`,
+      html: `<p><b>${esc(it.title)}</b> · owner ${esc(it.owner)} · ${mb} MB · about ${fmtCred(it.credits)} credits a year.</p>
+        <p><b>Remember, this service may still be in use by another map or service.</b> Maps, apps, StoryMaps and dashboards that use it will stop showing this data. Check the <a href="${esc(itemUrl(it.id))}" target="_blank" rel="noopener">item details</a> and with the owner before deleting.</p>
+        ${rbOn ? `<div class="delmodes">
+            <label><input type="radio" name="delmode" value="recycle" checked><span><b>Move to the recycle bin</b><br><span class="hint" style="margin:0">Can be restored for 14 days, but keeps using storage and credits until the recycle bin is emptied.</span></span></label>
+            <label><input type="radio" name="delmode" value="permanent"><span><b>Delete permanently</b><br><span class="hint" style="margin:0">Can't be restored. Stops using credits right away.</span></span></label>
+          </div>` : `<p class="hint">The recycle bin is off for your organization, so this deletes the layer <b>permanently</b>. It can't be restored.</p>`}`,
+      confirmLabel: "Delete", danger: true,
+      ack: "I've checked that nobody needs this layer."
+    });
+    const modeEl = document.querySelector('input[name="delmode"]:checked');
+    const permanent = !rbOn || (modeEl && modeEl.value === "permanent");
+    if (!ok) return;
+    setBusy(true);
+    const owner = encodeURIComponent(it.owner);
+    showMsg($("#sDelMsg"), "info", `Deleting "${esc(it.title)}"…`);
+    logEvent("INFO", `Delete requested · "${it.title}" (${it.id}, owner ${it.owner}) · ${permanent ? "permanent" : "to recycle bin"}`);
+    try {
+      // Ask ArcGIS Online first whether the item can be deleted (protection, dependent items…).
+      try {
+        const chk = await api(`/content/users/${owner}/items/${it.id}/canDelete`);
+        if (chk && chk.success === false) {
+          const why = (chk.details && chk.details.join(" ")) || (chk.error && chk.error.message) || "ArcGIS Online says this item can't be deleted right now.";
+          logEvent("WARN", `canDelete refused for ${it.id}: ${why}`);
+          showMsg($("#sDelMsg"), "warn", `"${esc(it.title)}" wasn't deleted: ${esc(why)}`);
+          return;
+        }
+      } catch (err) {
+        if (err.auth) throw err;
+        if (/protect|depend|cannot be deleted|can't be deleted|unable to delete/i.test(err.message)) {
+          showMsg($("#sDelMsg"), "warn", `"${esc(it.title)}" wasn't deleted: ${esc(err.message)}`);
+          return;
+        }
+        logEvent("WARN", `canDelete check unavailable for ${it.id}: ${err.message}; trying the delete`);
+      }
+      const r = await api(`/content/users/${owner}/items/${it.id}/delete`, permanent ? { permanentDelete: true } : {});
+      if (r && r.success === false) throw new Error((r.error && r.error.message) || "ArcGIS Online didn't delete the item.");
+      state.suspects = state.suspects.filter(x => x.id !== it.id);
+      state.sAll = (state.sAll || []).filter(x => x.id !== it.id);
+      logEvent("INFO", `Deleted · "${it.title}" (${it.id}) · ${permanent ? "permanent" : "recycle bin"} · ${mb} MB · ${fmtCred(it.credits)} credits/yr`);
+      showMsg($("#sDelMsg"), "info", permanent
+        ? `<b>Deleted "${esc(it.title)}" permanently.</b> That frees ${mb} MB and saves about <b>${fmtCred(it.credits)} credits a year</b>.`
+        : `<b>Moved "${esc(it.title)}" to the recycle bin.</b> It keeps using ${mb} MB (about ${fmtCred(it.credits / 12)} credits a month) until the recycle bin is emptied on the <b>Recycle bin</b> tab, or it expires after 14 days.`);
+      renderSuspectTable();
+    } catch (err) {
+      logEvent("ERROR", `Delete failed for ${it.id}: ${err.message}`);
+      showMsg($("#sDelMsg"), "err", err.auth ? "Your sign-in expired or was rejected. Sign out and sign in again."
+        : `Couldn't delete "${esc(it.title)}": ${esc(err.message)}`);
+    } finally { setBusy(false); }
+  });
+
   $("#sThead").addEventListener("click", (e) => {
     const th = e.target.closest("th[data-key]"); if (!th) return;
     const c = S_COLS.find(c => c.key === th.dataset.key);
@@ -1597,7 +1634,7 @@
       lines.push([it.rank, it.title, it.owner, it.access, it.protected ? "yes" : "no", (it.size / MB).toFixed(2), ((it.attach || 0) / MB).toFixed(2), (it.featBytes / MB).toFixed(2),
         it.credits.toFixed(2), it.v12 ?? "n/a", it.v30 ?? "n/a", it.numViews ?? "n/a", it.perView.toFixed(2), isoDate(it.modified), itemUrl(it.id), it.id].map(q).join(","));
     }
-    download(`large-underused-items-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
+    download(`underused-items-${stamp()}.csv`, "﻿" + lines.join("\r\n"));
   });
 
   // ---------- startup ----------
